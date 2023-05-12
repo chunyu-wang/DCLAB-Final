@@ -5,13 +5,13 @@ import numpy as np
 # define constant
 sample_rate = 1
 
-GS_threshold = 2.5
+GS_threshold = 2.3
 INIT_FRAME = 100
 
 ##################
 
 def colorFilter(IMG, low, high):
-    IMG2 = cv2.GaussianBlur(IMG, (10,10), 5)
+    IMG2 = cv2.GaussianBlur(IMG, (5,5), 5)
     IMG2 = cv2.cvtColor(IMG2, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(IMG2, np.array(low), np.array(high))
     IMG = cv2.bitwise_and(IMG, IMG, mask=mask)
@@ -21,8 +21,8 @@ def trackBarInit():
     cv2.namedWindow('trackbar')
     cv2.resizeWindow('trackbar',300,500)
     cv2.createTrackbar('H_min','trackbar',20,50,np.empty)
-    cv2.createTrackbar('H_max','trackbar',179,179,np.empty)
-    cv2.createTrackbar('S_min','trackbar',0,255,np.empty)
+    cv2.createTrackbar('H_max','trackbar',0,255,np.empty)
+    cv2.createTrackbar('S_min','trackbar',255,255,np.empty)
     cv2.createTrackbar('S_max','trackbar',255,255,np.empty)
     cv2.createTrackbar('V_min','trackbar',0,255,np.empty)
     cv2.createTrackbar('V_max','trackbar',255,255,np.empty)
@@ -39,7 +39,7 @@ def getTrackBarValue():
 def main():
     capture = cv2.VideoCapture(0,cv2.CAP_DSHOW)
     count = 0
-    # trackBarInit()
+    trackBarInit()
     SIGMA_X = None
     SIGMA_X_2 = None
     FRAME_COUNT = None
@@ -72,6 +72,10 @@ def main():
             continue
         
         
+        a,b = getTrackBarValue()
+        GS_threshold = a[0]/10
+        h_low = b[0]
+        h_high = a[1]
 
         # skip img for sample rate
         count += 1
@@ -103,7 +107,7 @@ def main():
         # print('\n\n\n')
        
         masked_img = cv2.bitwise_and(rawIMG, rawIMG, mask = filter)
-        
+        masked_img = colorFilter(masked_img, [30,60,80], [75,230,255])
         # # show img
         cv2.imshow('img', masked_img)
 

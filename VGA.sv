@@ -45,9 +45,9 @@ module VGA(
     logic [9:0] ve, ve_next; // current pixel vertical   coordinate
 
     // assign
-    assign VGA_R  = R;
-    assign VGA_G  = G;
-    assign VGA_B  = B;
+    assign VGA_R  = (hstate == S_ACTI && vstate == S_ACTI) ? R : 8'd0;
+    assign VGA_G  = (hstate == S_ACTI && vstate == S_ACTI) ? G : 8'd0;
+    assign VGA_B  = (hstate == S_ACTI && vstate == S_ACTI) ? B : 8'd0;
 
     assign VGA_HS = hsync;
     assign VGA_VS = vsync;
@@ -56,8 +56,8 @@ module VGA(
     assign VERTICAL = ve;
 
     // TODO (unsure the function)
-    assign VGA_BLANK_N = (v_sync ^ hsync);
-    assign VGA_SYNC_N  = (v_sync == hsync);
+    assign VGA_BLANK_N = (hstate == S_ACTI) || (vstate == S_ACTI) || (v_sync ^ hsync);
+    assign VGA_SYNC_N  = (hstate == S_ACTI) || (vstate == S_ACTI) || (v_sync == hsync);
 
     
     // always comb
@@ -95,6 +95,7 @@ module VGA(
                 if(vcount == FRON_V -1 && hcount == BACK_H -1)begin
                     vstate_next = S_SYNC;
                     vcount_next = 10'd0;
+                    v_sync_next = 1'b0;
                 end
                 else if(hcount == BACK_H -1)begin
                     vstate_next = vstate;
@@ -110,6 +111,7 @@ module VGA(
                 if(vcount == SYNC_V -1 && hcount == BACK_H -1)begin
                     vstate_next = S_BACK;
                     vcount_next = 10'd0;
+                    v_sync_next = 1'b1;
                 end
                 else if(hcount == BACK_H -1)begin
                     vstate_next = vstate;
@@ -203,12 +205,12 @@ module VGA(
             ve_next = ve;
         end
         else if( vstate == S_BACK && vcount == BACK_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
-            ve_next = HEIGHT - 10'd1;
-            ho_next = WIDTH  - 10'd1;
+            ve_next = 10'd0;
+            ho_next = 10'd0;
         end
         else if( hstate == S_BACK && hcount == BACK_H -1)begin
-            ho_next = WIDTH - 10'd1;
-            ve_next = ve - 10'd1;
+            ho_next = 10'd0;
+            ve_next = ve + 10'd1;
         end
         else begin
             ho_next = ho;
@@ -216,17 +218,16 @@ module VGA(
         end
     end
 
-
     always_ff @( negedge rst_n or posedge clk) begin
         if(!rst_n)begin
-            hstate <= S_IDLE;
-            vstate <= S_IDLE;
+            hstate <= S_ACTI;
+            vstate <= S_ACTI;
             hcount <= 10'd0;
             vcount <= 10'd0;
-            hsync  <= 1'b0;
-            vsync  <= 1'b0;
-            ho     <= WIDTH  -1;
-            ve     <= HEIGHT -1;
+            hsync  <= 1'b1;
+            vsync  <= 1'b1;
+            ho     <= 10'd0;
+            ve     <= 10'd0;
         end
         else begin
             hstate <= hstate_next;
