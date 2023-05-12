@@ -23,9 +23,9 @@ module VGA(
     localparam SYNC_H     = 96;
     localparam BACK_H     = 48;
     localparam ACTI_V     = 480;
-    localparam FRON_V     = 11;
+    localparam FRON_V     = 10;
     localparam SYNC_V     = 2;
-    localparam BACK_V     = 31;
+    localparam BACK_V     = 33;
     // state
     localparam S_IDLE = 3'd0;
     localparam S_ACTI = 3'd1;
@@ -56,10 +56,9 @@ module VGA(
     assign VERTICAL = ve;
 
     // TODO (unsure the function)
-    assign VGA_BLANK_N = (hstate == S_ACTI) || (vstate == S_ACTI) || (v_sync ^ hsync);
-    assign VGA_SYNC_N  = (hstate == S_ACTI) || (vstate == S_ACTI) || (v_sync == hsync);
+    assign VGA_BLANK_N = (vstate == S_ACTI) && (hstate == S_ACTI);
+    assign VGA_SYNC_N  = (vsync ^ hsync);
 
-    
     // always comb
 
     always_comb begin
@@ -77,11 +76,11 @@ module VGA(
         case (vstate)
             S_ACTI:begin
                 vsync_next = 1'b1;
-                if(vcount == ACTI_V -1 && hcount == BACK_H -1)begin
+                if(vcount == ACTI_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = S_FRON;
                     vcount_next = 10'd0;
                 end
-                else if(hcount == BACK_H -1)begin
+                else if(hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = vstate;
                     vcount_next = vcount + 10'd1;
                 end
@@ -92,12 +91,12 @@ module VGA(
             end
             S_FRON:begin
                 vsync_next = 1'b1;
-                if(vcount == FRON_V -1 && hcount == BACK_H -1)begin
+                if(vcount == FRON_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = S_SYNC;
                     vcount_next = 10'd0;
-                    v_sync_next = 1'b0;
+                    vsync_next = 1'b0;
                 end
-                else if(hcount == BACK_H -1)begin
+                else if(hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = vstate;
                     vcount_next = vcount + 10'd1;
                 end
@@ -108,12 +107,12 @@ module VGA(
             end
             S_SYNC:begin
                 vsync_next = 1'b0;
-                if(vcount == SYNC_V -1 && hcount == BACK_H -1)begin
+                if(vcount == SYNC_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = S_BACK;
                     vcount_next = 10'd0;
-                    v_sync_next = 1'b1;
+                    vsync_next = 1'b1;
                 end
-                else if(hcount == BACK_H -1)begin
+                else if(hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = vstate;
                     vcount_next = vcount + 10'd1;
                 end
@@ -124,11 +123,11 @@ module VGA(
             end
             S_BACK:begin
                 vsync_next = 1'b1;
-                if(vcount == BACK_V -1 && hcount == BACK_H -1)begin
+                if(vcount == BACK_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = S_ACTI;
                     vcount_next = 10'd0;
                 end
-                else if(hcount == BACK_H -1)begin
+                else if(hstate == S_BACK && hcount == BACK_H -1)begin
                     vstate_next = vstate;
                     vcount_next = vcount + 10'd1;
                 end
@@ -163,6 +162,7 @@ module VGA(
                 if(hcount == FRON_H -1)begin
                     hstate_next = S_SYNC;
                     hcount_next = 10'd0;
+                    hsync_next = 1'b0;
                 end
                 else begin
                     hstate_next = hstate;
@@ -174,6 +174,7 @@ module VGA(
                 if(hcount == SYNC_H -1)begin
                     hstate_next = S_BACK;
                     hcount_next = 10'd0;
+                    hsync_next = 1'b1;
                 end
                 else begin
                     hstate_next = hstate;
@@ -185,7 +186,6 @@ module VGA(
                 if(hcount == BACK_H -1)begin
                     hstate_next = S_ACTI;
                     hcount_next = 10'd0;
-                    vcount_next = vcount + 10'd1;
                 end
                 else begin
                     hstate_next = hstate;
@@ -200,17 +200,29 @@ module VGA(
         endcase
 
         // for pixel coordinate
-        if( vstate == S_ACTI && hstate == S_ACTI)begin
-            ho_next = ho + 10'd1;
-            ve_next = ve;
+        if( vstate == S_ACTI && hstate == S_ACTI )begin
+            if( ho == WIDTH - 1)begin
+                ho_next = 11'd0;
+                ve_next = ve;
+            end
+            else begin
+                ho_next = ho + 11'd1;
+                ve_next = ve;
+            end
         end
         else if( vstate == S_BACK && vcount == BACK_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
-            ve_next = 10'd0;
-            ho_next = 10'd0;
+            ve_next = 11'd0;
+            ho_next = 11'd0;
         end
-        else if( hstate == S_BACK && hcount == BACK_H -1)begin
-            ho_next = 10'd0;
-            ve_next = ve + 10'd1;
+        else if( vstate == S_ACTI && hstate == S_BACK && hcount == BACK_H -1)begin
+            if(ve == HEIGHT -1)begin
+                ho_next = 11'd0;
+                ve_next = ve + 11'd1;
+            end
+            else begin
+                ho_next = 11'd0;
+                ve_next = 11'd0;
+            end
         end
         else begin
             ho_next = ho;
@@ -218,16 +230,16 @@ module VGA(
         end
     end
 
-    always_ff @( negedge rst_n or posedge clk) begin
+    always_ff @( negedge rst_n or negedge clk) begin
         if(!rst_n)begin
             hstate <= S_ACTI;
             vstate <= S_ACTI;
-            hcount <= 10'd0;
-            vcount <= 10'd0;
+            hcount <= 11'd0;
+            vcount <= 11'd0;
             hsync  <= 1'b1;
             vsync  <= 1'b1;
-            ho     <= 10'd0;
-            ve     <= 10'd0;
+            ho     <= 11'd0;
+            ve     <= 11'd0;
         end
         else begin
             hstate <= hstate_next;
