@@ -17,7 +17,7 @@ module testVGA(
 	output o_VGA_VS,
 	output [3:0] test
 );
-	wire [9:0] x, y;
+	wire [10:0] x, y;
 
 	VGA vga(
 		.clk(i_clk),
@@ -47,28 +47,30 @@ module testVGA(
 	logic [31:0] counter_r, counter_w;
 
 
-	assign pix_R = ((x>10'd200) && (x<10'd400) && (y>10'd200) && (y<10'd400))? 8'd255 : 8'd0;
-	assign pix_G = ((x>10'd200) && (x<10'd400) && (y>10'd200) && (y<10'd400))? 8'd255 : 8'd0;
-	assign pix_B = ((x>10'd200) && (x<10'd400) && (y>10'd200) && (y<10'd400))? 8'd255 : 8'd0;
+	assign pix_R = (y > 11'd200 && y < 11'd400 ) ? 8'd255 : 8'd0 ;
+	assign pix_G = (y > 11'd200 && y < 11'd400 ) ? 8'd255 : 8'd0 ;
+	assign pix_B = (y > 11'd200 && y < 11'd400 ) ? 8'd255 : 8'd0 ;
 
-
+	
 	always_ff @(negedge i_rst_n or posedge i_clk) begin
-
 		if(!i_rst_n)begin
 			counter_r <= 32'd0;
 			outtest_r <= 4'd0;
+			
 		end
 		else begin
 			counter_r <= counter_w;
 			outtest_r <= outtest_w;
+	
 		end
 		
 	end
 
 	always_comb begin
-		if(counter_r >= 32'd5000000)begin
+		
+		if(counter_r >= 32'd25000000)begin
 			counter_w = 32'd0;
-			outtest_w = outtest_r + 4'd1;  
+			outtest_w = x[3:0];  
 		end
 		else begin
 			counter_w = counter_r + 32'd1;

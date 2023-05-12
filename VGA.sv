@@ -23,9 +23,9 @@ module VGA(
     localparam SYNC_H     = 96;
     localparam BACK_H     = 48;
     localparam ACTI_V     = 480;
-    localparam FRON_V     = 10;
+    localparam FRON_V     = 11;
     localparam SYNC_V     = 2;
-    localparam BACK_V     = 33;
+    localparam BACK_V     = 31;
     // state
     localparam S_IDLE = 3'd0;
     localparam S_ACTI = 3'd1;
@@ -41,8 +41,8 @@ module VGA(
     logic [9:0] vcount, vcount_next;
     logic hsync, hsync_next;
     logic vsync, vsync_next;
-    logic [9:0] ho, ho_next; // current pixel horizontal coordinate
-    logic [9:0] ve, ve_next; // current pixel vertical   coordinate
+    logic [10:0] ho, ho_next; // current pixel horizontal coordinate
+    logic [10:0] ve, ve_next; // current pixel vertical   coordinate
 
     // assign
     assign VGA_R  = (hstate == S_ACTI && vstate == S_ACTI) ? R : 8'd0;
@@ -56,8 +56,8 @@ module VGA(
     assign VERTICAL = ve;
 
     // TODO (unsure the function)
-    assign VGA_BLANK_N = (vstate == S_ACTI) && (hstate == S_ACTI);
-    assign VGA_SYNC_N  = (vsync ^ hsync);
+    assign VGA_BLANK_N = (vstate == S_ACTI && hstate == S_ACTI);
+    assign VGA_SYNC_N  = 1'b1;
 
     // always comb
 
