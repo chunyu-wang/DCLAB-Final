@@ -1,0 +1,3 @@
+source /usr/cad/synopsys/CIC/vcs.cshrc
+source /usr/cad/synopsys/CIC/verdi.cshrc
+vcs tb/tb_VGA.sv VGA.sv -full64 -R -debug_access+all +v2k -sverilog

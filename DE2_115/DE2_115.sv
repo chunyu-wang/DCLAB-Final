@@ -144,7 +144,7 @@ logic [3:0] test;
 VGAtest vga_qsys( // generate with qsys, please follow lab2 tutorials
 	.clk_clk(CLOCK_50),
 	.reset_reset_n(key3down),
-	.altpll_25_2m_clk(CLK_25_2M)
+	.altpll_25_175m_clk(CLK_25_2M)
 );
 
 // you can decide key down settings on your own, below is just an example
