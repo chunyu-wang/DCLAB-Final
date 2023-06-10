@@ -5,7 +5,9 @@ import numpy as np
 # define constant
 sample_rate = 1
 
+
 GS_threshold = 2.3
+
 INIT_FRAME = 100
 
 ##################
@@ -72,10 +74,12 @@ def main():
             continue
         
         
+
         a,b = getTrackBarValue()
         GS_threshold = a[0]/10
         h_low = b[0]
         h_high = a[1]
+
 
         # skip img for sample rate
         count += 1
@@ -108,6 +112,7 @@ def main():
        
         masked_img = cv2.bitwise_and(rawIMG, rawIMG, mask = filter)
         masked_img = colorFilter(masked_img, [30,60,80], [75,230,255])
+
         # # show img
         cv2.imshow('img', masked_img)
 
