@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 '''you shall use 'pip install opencv-python' command before import cv package'''
 
 # define constant
@@ -9,6 +10,7 @@ sample_rate = 1
 GS_threshold = 2.3
 
 INIT_FRAME = 100
+OSX = 1
 
 ##################
 
@@ -39,8 +41,14 @@ def getTrackBarValue():
     return np.array([Hmin,Smin,Vmin]),np.array([Hmax,Smax,Vmax])
 
 def main():
-    capture = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+    if(OSX):
+        capture = cv2.VideoCapture(0)
+    else:
+        capture = cv2.VideoCapture(0,cv2.CAP_DSHOW)
     count = 0
+    count_last = count
+    time_last = time.time()
+
     trackBarInit()
     SIGMA_X = None
     SIGMA_X_2 = None
@@ -52,7 +60,12 @@ def main():
     # capture.set(cv2.CAP_PROP_AUTO_WB, 1)
     # capture.set(cv2.CAP_PROP_SETTINGS, 1)
     while True:
-    
+        # Calculate FPS
+        time_now = time.time()
+        fps = (count-count_last)/(time_now-time_last)
+        print(fps)
+        count_last = count
+        time_last = time_now
         # read img from camera
         ret, rawIMG = capture.read()
         IMG = np.array(cv2.cvtColor(rawIMG,cv2.COLOR_BGR2GRAY),np.uint32)
@@ -113,6 +126,8 @@ def main():
         masked_img = cv2.bitwise_and(rawIMG, rawIMG, mask = filter)
         masked_img = colorFilter(masked_img, [30,60,80], [75,230,255])
 
+        # put FPS on img
+        masked_img = cv2.putText(masked_img, str(fps), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0))
         # # show img
         cv2.imshow('img', masked_img)
 
