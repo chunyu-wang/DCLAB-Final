@@ -6,6 +6,10 @@ module MotionPredict(
     input [7:0] g,
     input [7:0] b,
 
+    input [7:0] pix_x,   // mean of the first 32 frames with gray scale at x,y
+    input [7:0] pix_x2,  // stdev of the first 32 frames with gray scale at x,y
+
+
     input i_start, // for start the whole process for many cycles
     input i_valid, // input r,g,b is valid
 
@@ -61,15 +65,28 @@ module MotionPredict(
     wire [7:0] r_w, g_w, b_w;
     wire [7:0] max, min;
     wire [9:0] h,s,v;
-    
+    logic [15:0] temp4;
+    logic [7:0] gray;
+    logic isBackground;
 
     logic [10:0] up_x, up_x_nxt, up_y, up_y_nxt;
-    logic [10:0] down_x, down_x_nxt, down_y, down_y_nxt;
+    logic [10:0] down_x, down_x_nxt, down_y, down_y_t;
     logic [10:0] left_x, left_x_nxt, left_y, left_y_nxt;
     logic [10:0] right_x, right_x_nxt, right_y, right_y_nxt;
-
+    
     genvar mygen;
 
+    always_comb begin
+        temp4 = {8'd0,r}<<5 + {8'd0,r}<<2 + {8'd0,r}<<1 +  // * 38
+        {8'd0,g}<<6 + {8'd0,g}<<3 + {8'd0,g}<<1 + {8'd0,g} +   // * 75
+        {8'd0,b}<<4 - {8'd0,b};
+
+        gray = temp4[14:7] + temp4[6]?1'd1:1'd0;
+
+        isBackground = (gray>pix_x) ?
+        {8'd0,gray-pix_x}*{8'd0,gray-pix_x} <= pix_x2 :
+        {8'd0,pix_x-gray}*{8'd0,pix_x-gray} <= pix_x2 ;
+    end
 ///////////////////////////////////////////
 
     assign coord_valid = (state == S_READ);
@@ -147,6 +164,25 @@ module MotionPredict(
             S_PROC:begin
                 if(!i_valid)begin
                     state_nxt = state;
+                end
+                else if(isBackground)begin
+                    state_nxt = S_READ;
+                    if(x + deltaX >= WIDTH)begin
+                        x_nxt = 11'd0;
+                        if(y + deltaY >= HEIGHT)begin
+                            // finish a whole pic
+                            y_nxt = 11'd0;
+                            state_nxt = S_OUT;
+                        end
+                        else begin
+                            y_nxt = y + deltaY;
+                            state_nxt = S_READ;
+                        end
+                    end
+                    else begin
+                        x_nxt = x + deltaX ;
+                        state_nxt = S_READ;
+                    end
                 end
                 else begin
                     // calc white balance
