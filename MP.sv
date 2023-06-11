@@ -18,7 +18,10 @@ module MotionPredict(
     output [10:0] up    [1:0],    
     output [10:0] left  [1:0], 
     output [10:0] right [1:0],
-    output [10:0] down  [1:0]
+    output [10:0] down  [1:0],
+    output [9:0] o_h,
+    output [9:0] o_s,
+    output [9:0] o_v
 );
 ////////////////////////////////////
     localparam WIDTH  = 640;
@@ -55,9 +58,10 @@ module MotionPredict(
     logic [10:0] x, x_nxt;
     logic [10:0] y, y_nxt;
 
-    logic [7:0] r_w, g_w, b_w;
-    logic [7:0] max, min;
-    logic [9:0] h,s,v;
+    wire [7:0] r_w, g_w, b_w;
+    wire [7:0] max, min;
+    wire [9:0] h,s,v;
+    
 
     logic [10:0] up_x, up_x_nxt, up_y, up_y_nxt;
     logic [10:0] down_x, down_x_nxt, down_y, down_y_nxt;
@@ -80,6 +84,38 @@ module MotionPredict(
             assign right[mygen] = (mygen) ? right_x : right_y;
         end
     endgenerate
+    assign o_h = h;
+    assign o_s = s;
+    assign o_v = v;
+    // calc filter
+    assign r_w = (({8'd0,r} * thres_r) / max_r); 
+    assign g_w = (({8'd0,g} * thres_g) / max_g); 
+    assign b_w = (({8'd0,b} * thres_b) / max_b); 
+    assign max = (r_w > g_w) ? (
+        (r_w > b_w) ? r_w : b_w
+    ):
+    (
+        (g_w > b_w) ? g_w : b_w
+    );
+    assign min = (r_w < g_w) ? (
+        (r_w < b_w) ? r_w : b_w
+    ):
+    (
+        (g_w < b_w) ? g_w : b_w
+    );
+    assign v = max;
+    assign s = (max == 8'd0) ? 0 : 10'd255 * (max-min) / max;
+    
+    wire [15:0] temp1, temp2, temp3;
+    assign temp1 = $signed(16'd60) * $signed(g_w-b_w) / $signed({1'b0,max - min});
+    assign temp2 = $signed(16'd60) * $signed(b_w-r_w) / $signed({1'b0,max - min});
+    assign temp3 = $signed(16'd60) * $signed(r_w-g_w) / $signed({1'b0,max - min});
+    assign h = (max == min) ? 10'd0 :
+    ((max == r_w && g_w > b_w)  ? temp1[9:0] :
+    ((max == r_w && temp1[9:0]==10'd0) ?     10'd0 :
+    (max == r_w) ?     10'd360 + temp1[9:0] :
+    ((max == g_w) ?     10'd120 + temp2[9:0] :
+    10'd240 + temp3[9:0] )));
 ///////////////////////////////////////////
 
     always_comb begin
@@ -87,9 +123,9 @@ module MotionPredict(
         x_nxt = x;
         y_nxt = y;
 
-        r_w = 8'd0; g_w = 8'd0; b_w = 8'd0;
-        max = 8'd0; min = 8'd0;
-        h = 10'd0; s = 10'd0; v = 10'd0;
+        // r_w = 8'd0; g_w = 8'd0; b_w = 8'd0;
+        // max = 8'd0; min = 8'd0;
+        // h = 10'd1010; s = 10'd1010; v = 10'd1010;
 
         up_x_nxt = up_x;
         up_y_nxt = up_y;
@@ -114,41 +150,41 @@ module MotionPredict(
                 end
                 else begin
                     // calc white balance
-                    r_w = (({8'd0,r} * thres_r) / max_r); 
-                    g_w = (({8'd0,g} * thres_g) / max_g); 
-                    b_w = (({8'd0,b} * thres_b) / max_b); 
+                    // r_w = (({8'd0,r} * thres_r) / max_r); 
+                    // g_w = (({8'd0,g} * thres_g) / max_g); 
+                    // b_w = (({8'd0,b} * thres_b) / max_b); 
 
                     // calc hsv and filter
-                    max = (r_w > g_w) ? (
-                        (r_w > b_w) ? r_w : b_w
-                    ):
-                    (
-                        (g_w > b_w) ? g_w : b_w
-                    );
-                    min = (r_w < g_w) ? (
-                        (r_w < b_w) ? r_w : b_w
-                    ):
-                    (
-                        (g_w < b_w) ? g_w : b_w
-                    );
+                    // max = (r_w > g_w) ? (
+                    //     (r_w > b_w) ? r_w : b_w
+                    // ):
+                    // (
+                    //     (g_w > b_w) ? g_w : b_w
+                    // );
+                    // min = (r_w < g_w) ? (
+                    //     (r_w < b_w) ? r_w : b_w
+                    // ):
+                    // (
+                    //     (g_w < b_w) ? g_w : b_w
+                    // );
 
-                    v = max;
+                    // v = max;
 
                     if( v > vmax || v < vmin)begin
                         // v out of filter range
                     end
                     else begin
-                        s = (max == 8'd0) ? 0 : 10'd255 * (max-min) / max;
+                        // s = (max == 8'd0) ? 0 : 10'd255 * (max-min) / max;
 
                         if(s > smax || s < smin)begin
                             // s out of filter range
                         end
                         else begin
-                            h = (max == min) ? 10'd0 :
-                            (max == r_w && g_w > b_w)  ? (16'd60 * (g_w-b_w) / (max - min)) :
-                            (max == r_w) ?     10'd360 - (16'd60 * (b_w-g_w) / (max - min)) :
-                            (max == g_w) ?     10'd120 + (16'd60 * (b_w-r_w) / (max - min)) :
-                            10'd240 + (16'd60 * (r_w-g_w) / (max - min)) ;
+                            // h = (max == min) ? 10'd0 :
+                            // (max == r_w && g_w > b_w)  ? (16'd60 * (g_w-b_w) / (max - min)) :
+                            // (max == r_w) ?     10'd360 - (16'd60 * (b_w-g_w) / (max - min)) :
+                            // (max == g_w) ?     10'd120 + (16'd60 * (b_w-r_w) / (max - min)) :
+                            // 10'd240 + (16'd60 * (r_w-g_w) / (max - min)) ;
                             if(h > hmax || h < hmin)begin
                                 // h out of filter range
                             end
