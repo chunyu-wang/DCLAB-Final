@@ -1,0 +1,1 @@
+`define VGA_640x480p60 1
