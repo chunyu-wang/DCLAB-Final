@@ -40,8 +40,8 @@ module MotionPredict(
     localparam deltaY = 1;
 //////////// white balance param //////////
     localparam thres_r = 255;
-    localparam thres_g = 255;
-    localparam thres_b = 255;
+    localparam thres_g = 248;
+    localparam thres_b = 215;
     localparam max_r = 255;
     localparam max_g = 255;
     localparam max_b = 255;
@@ -79,7 +79,7 @@ module MotionPredict(
     always_comb begin
         temp4 = {8'd0,r}<<5 + {8'd0,r}<<2 + {8'd0,r}<<1 +  // * 38
         {8'd0,g}<<6 + {8'd0,g}<<3 + {8'd0,g}<<1 + {8'd0,g} +   // * 75
-        {8'd0,b}<<4 - {8'd0,b};
+        {8'd0,b}<<4 - {8'd0,b}; // * 12
 
         gray = temp4[14:7] + temp4[6]?1'd1:1'd0;
 
@@ -105,9 +105,9 @@ module MotionPredict(
     assign o_s = s;
     assign o_v = v;
     // calc filter
-    assign r_w = (({8'd0,r} * thres_r) / max_r); 
-    assign g_w = (({8'd0,g} * thres_g) / max_g); 
-    assign b_w = (({8'd0,b} * thres_b) / max_b); 
+    assign r_w = (r > thres_r) ? max_r : (({8'd0,r} * max_r) / thres_r); 
+    assign g_w = (g > thres_g) ? max_g : (({8'd0,g} * max_g) / thres_g); 
+    assign b_w = (b > thres_b) ? max_b : (({8'd0,b} * max_b) / thres_b); 
     assign max = (r_w > g_w) ? (
         (r_w > b_w) ? r_w : b_w
     ):
