@@ -1,0 +1,19 @@
+module DFF(
+    input i_clk, 
+    input i_rst_n, 
+    input [15:0] d,
+    output [15:0] q 
+);
+
+
+reg [15:0] q;
+
+always_ff @(posedge i_clk, negedge i_rst_n) begin
+    if(!i_rst_n) begin
+        q <= 0;
+    end
+    else begin 
+        if(q==0) q <= d;
+    end
+end
+endmodule;

@@ -70,7 +70,7 @@ module MotionPredict(
     logic isBackground;
 
     logic [10:0] up_x, up_x_nxt, up_y, up_y_nxt;
-    logic [10:0] down_x, down_x_nxt, down_y, down_y_t;
+    logic [10:0] down_x, down_x_nxt, down_y, down_y_nxt;
     logic [10:0] left_x, left_x_nxt, left_y, left_y_nxt;
     logic [10:0] right_x, right_x_nxt, right_y, right_y_nxt;
     
@@ -94,7 +94,7 @@ module MotionPredict(
     assign o_y = y;
     assign o_valid = (state == S_OUT);
     generate
-        for (mygen = 0; mygen < 2; mygen = mygen + 1)begin
+        for (mygen = 0; mygen < 2; mygen = mygen + 1)begin : genwires
             assign up[mygen]    = (mygen) ? up_x    : up_y;
             assign down[mygen]  = (mygen) ? down_x  : down_y;
             assign left[mygen]  = (mygen) ? left_x  : left_y;

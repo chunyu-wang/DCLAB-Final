@@ -134,15 +134,17 @@ module DE2_115 (
 	input [16:0] HSMC_RX_D_P,
 	output [16:0] HSMC_TX_D_P,
 	inout [6:0] EX_IO
-
-
 );
 
 logic key0down, key1down, key2down, key3down;
-logic CLK_25_2M;
-assign VGA_CLK = CLOCK_50;
-logic [3:0] test;
 
+logic clk_100M;
+logic clk_100M_3ns;
+logic clk_50M;
+logic clk_25M_1;  // first  25M clk;
+logic clk_25M_2;  // second 25M clk;
+
+assign DRAM_CLK = clk_100M_3ns;
 
 logic		    [11:0]		D5M_D;
 logic		          		D5M_FVAL;
@@ -152,21 +154,39 @@ wire		          		D5M_RESET_N;
 wire		          		D5M_SCLK;
 wire		          		D5M_SDAT;
 logic		          		D5M_STROBE;
-output		          		D5M_TRIGGER;
-output		          		D5M_XCLKIN;
+logic		          		D5M_TRIGGER;
+logic		          		D5M_XCLKIN;
 
 
-assign D5M_D = {GPIO[1], GPIO[3:13]};
+//assign D5M_D = {GPIO[1], GPIO[3:13]};
+
+assign D5M_D[10] = GPIO[3];
+assign D5M_D[9] = GPIO[4];
+assign D5M_D[8] = GPIO[5];
+assign D5M_D[7] = GPIO[6];
+assign D5M_D[6] = GPIO[7];
+assign D5M_D[5] = GPIO[8];
+assign D5M_D[4] = GPIO[9];
+assign D5M_D[3] = GPIO[10];
+assign D5M_D[2] = GPIO[11];
+assign D5M_D[1] = GPIO[12];
+assign D5M_D[0] = GPIO[13];
+
 assign D5M_FVAL = GPIO[22];
 assign D5M_LVAL = GPIO[21];
 assign D5M_PIXLCLK = GPIO[0];
-assign D5M_RESET_N = GPIO[17]
+assign D5M_RESET_N = GPIO[17];
 assign GPIO[24] = D5M_SCLK;
 assign GPIO[23] = D5M_SDAT;
 assign D5M_STROBE = GPIO[20];
 assign GPIO[22] = D5M_TRIGGER;
 assign GPIO[16] = D5M_XCLKIN;
 
+assign D5M_TRIGGER = 1'b1;
+assign D5M_XCLKIN = clk_25M_1;
+
+
+assign wr_data = SW[15:0];
 /*
 assign D5M_D[10] = GPIO[3]
 assign D5M_D[9] = GPIO[4]
@@ -182,11 +202,22 @@ assign D5M_D[0] = GPIO[13]
 */
 
 
-VGAtest vga_qsys( // generate with qsys, please follow lab2 tutorials
-	.clk_clk(CLOCK_50),
-	.reset_reset_n(key3down),
-	.altpll_25_175m_clk(CLK_25_2M)
+// VGAtest vga_qsys( // generate with qsys, please follow lab2 tutorials
+// 	.clk_clk(CLOCK_50),
+// 	.reset_reset_n(key3down),
+// 	.altpll_25_175m_clk(CLK_25_2M)
+// );
+altpll altpll0(
+	.altpll_clk_100m_clk(clk_100M), // altpll_100m_clk.clk
+	.altpll_clk_100m_3ns_clk(clk_100M_3ns),  //  altpll_50m_clk.clk
+	.altpll_clk_50m_clk(clk_50M),      //      altpll_clk_50m.clk
+	.altpll_clk_25m_1_clk(clk_25M_1),    //    altpll_clk_25m_1.clk
+	.altpll_clk_25m_2_clk(clk_25M_2),    //    altpll_clk_25m_2.clk
+	
+	.clk_clk(CLOCK_50),             //             clk.clk
+	.reset_reset_n(key3down)        //           reset.reset_n
 );
+
 
 // you can decide key down settings on your own, below is just an example
 Debounce deb0(
@@ -212,12 +243,12 @@ Debounce deb2(
 
 logic sdram_we, sdram_rd;
 logic [15:0] sdram_wr_data1, sdram_wr_data2, sdram_rd_data1, sdram_rd_data2;
-
+assign sdram_ctrl_clk = clk_100M;
 
 wire dly_rst_n0, dly_rst_n1, dly_rst_n2, dly_rst_n3, dly_rst_n4;
 Reset_Delay reset_delay(
 	.i_clk(CLOCK_50),
-	.i_rst_n(KEY[3]),
+	.i_rst_n(key3down),
 	.o_rst_n0(dly_rst_n0), // sdram ctrl
 	.o_rst_n1(dly_rst_n1),
 	.o_rst_n2(dly_rst_n2),
@@ -233,40 +264,40 @@ Sdram_Control	sdram_ctrl(	//	HOST Side
 
 							//	FIFO Write Side 1
 							//.WR1_DATA(sdram_wr_data1),
-							.WR1_DATA(16'hDEAD),
-							.WR1(sdram_we),
-							.WR1_ADDR(0),
-						    .WR1_MAX_ADDR(23'h0FFFFF), //
-						    .WR1_LENGTH(8'h100),
+							.WR1_DATA(wr_data),
+							.WR1(key0down),
+							.WR1_ADDR(23'h000000),
+						    .WR1_MAX_ADDR(640*512*2), //
+						    .WR1_LENGTH(8'h10),
 							.WR1_LOAD(!dly_rst_n0),
-							.WR1_CLK(CLOCK_50), //TODO: why clock2_50
+							.WR1_CLK(clk_50M), //TODO: why clock2_50
 
-							//	FIFO Write Side 2
-							.WR2_DATA(sdram_wr_data2),
-							.WR2(0),
-							.WR2_ADDR(23'h100000),
-						    .WR2_MAX_ADDR(23'h100000+640*480/2),
-							.WR2_LENGTH(8'h50),
-							.WR2_LOAD(!dly_rst_n0),
-							.WR2_CLK(CLOCK_50),
+							// //	FIFO Write Side 2
+							// .WR2_DATA(sdram_wr_data2),
+							// .WR2(0),
+							// .WR2_ADDR(23'h100000),
+						    // .WR2_MAX_ADDR(23'h100000+640*480/2),
+							// .WR2_LENGTH(8'h50),
+							// .WR2_LOAD(!dly_rst_n0),
+							// .WR2_CLK(clk_50M),
 
 							//	FIFO Read Side 1
 						    .RD1_DATA(sdram_rd_data1),
-				        	.RD1(sdram_rd),
-				        	.RD1_ADDR(0),
-						    .RD1_MAX_ADDR(23'h0FFFFF),
-							.RD1_LENGTH(8'h50),
+				        	.RD1(!key0down),
+				        	.RD1_ADDR(640*0),
+						    .RD1_MAX_ADDR(640*496),
+							.RD1_LENGTH(8'h10),
 							.RD1_LOAD(!dly_rst_n0),
-							.RD1_CLK(CLOCK_50),
+							.RD1_CLK(clk_50M),
 							
-							//	FIFO Read Side 2
-						    .RD2_DATA(Read_DATA2),
-							.RD2(0),
-							.RD2_ADDR(23'h100000),
-						    .RD2_MAX_ADDR(23'h100000+640*480/2),
-							.RD2_LENGTH(8'h50),
-				        	.RD2_LOAD(!dly_rst_n0),
-							.RD2_CLK(CLOCK_50),
+							// //	FIFO Read Side 2
+						    // .RD2_DATA(Read_DATA2),
+							// .RD2(0),
+							// .RD2_ADDR(23'h100000),
+						    // .RD2_MAX_ADDR(23'h100000+640*480/2),
+							// .RD2_LENGTH(8'h50),
+				        	// .RD2_LOAD(!dly_rst_n0),
+							// .RD2_CLK(clk_50M),
 							
 							//	SDRAM Side
 						    .SA(DRAM_ADDR),
@@ -279,6 +310,8 @@ Sdram_Control	sdram_ctrl(	//	HOST Side
 							.DQ(DRAM_DQ),
 							.DQM(DRAM_DQM)
 );
+
+
 /*
 testVGA top0(
 	.i_clk(CLK_25_2M),
@@ -313,31 +346,56 @@ SevenHexDecoder seven_dec1(
  	.o_seven_one(HEX0)
 );
 */
+logic [15:0] Q;
+
+MYdFF dff1(
+	 .i_clk(clk_50M), 
+    .i_rst_n(key3down), 
+    .d(sdram_rd_data1),
+    .q(Q) 
+);
+
 SEG7_LUT seven_dec0(
-	.iDIG(sdram_rd_data1[3:0]), 
+	.iDIG(Q[3:0]), 
 	.oSEG(HEX0)
 );
 SEG7_LUT seven_dec1(
-	.iDIG(sdram_rd_data1[7:4]), 
+	.iDIG(Q[7:4]), 
 	.oSEG(HEX1)
 );
 SEG7_LUT seven_dec2(
-	.iDIG(sdram_rd_data1[11:8]), 
+	.iDIG(Q[11:8]), 
 	.oSEG(HEX2)
 );
 SEG7_LUT seven_dec3(
-	.iDIG(sdram_rd_data1[15:12]), 
+	.iDIG(Q[15:12]), 
 	.oSEG(HEX3)
 );
 
+SEG7_LUT seven_dec4(
+	.iDIG(SW[3:0]), 
+	.oSEG(HEX4)
+);
+SEG7_LUT seven_dec5(
+	.iDIG(SW[7:4]), 
+	.oSEG(HEX5)
+);
+SEG7_LUT seven_dec6(
+	.iDIG(SW[11:8]), 
+	.oSEG(HEX6)
+);
+SEG7_LUT seven_dec7(
+	.iDIG(SW[15:12]), 
+	.oSEG(HEX7)
+);
 // comment those are use for display
 //assign HEX0 = 7'b111_1111;
 //assign HEX1 = 7'b111_1111;
 // assign HEX2 = '1;
 // assign HEX3 = '1;
-assign HEX4 = 7'b111_1111;
-assign HEX5 = 7'b111_1111;
-assign HEX6 = 7'b111_1111;
-assign HEX7 = 7'b111_1111;
+// assign HEX4 = 7'b111_1111;
+// assign HEX5 = 7'b111_1111;
+// assign HEX6 = 7'b111_1111;
+// assign HEX7 = 7'b111_1111;
 
 endmodule
