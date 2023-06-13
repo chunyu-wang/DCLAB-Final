@@ -84,7 +84,8 @@ module GameLogic(
     (Ball_y[2] > 11'd639 || Ball_y[2] < 11'd10 )? 4'd2 :
     (Ball_y[3] > 11'd639 || Ball_y[3] < 11'd10 )? 4'd3 :
     4'd4;
-    
+
+
     genvar  myGenvar;
     generate
         
@@ -118,8 +119,8 @@ module GameLogic(
     sticker yourHit(
         .x(x),
         .y(y),
-        .sticker_pos_x(prev_x[1]),
-        .sticker_pos_y(prev_y[1]),
+        .sticker_pos_x(this_x),
+        .sticker_pos_y(this_y),
         .size(30),
         .color(COLOR_green),
         .rgb(hit_rgb)
@@ -163,8 +164,10 @@ module GameLogic(
         gamestart_nxt = gamestart;
         gameenter_nxt = gameenter;
         score_nxt     = score;
-        this_x = 11'd2023;
-        this_y = 11'd2023;
+
+        this_x = (left[0] == 11'd2023) ? prev_x[1] << 1 - prev_x[0] : (({left[0]} + {right[0]})>>1 + ({down[0]} + {up[0]}) >>1) >>1;
+        this_y = (left[0] == 11'd2023) ? prev_y[1] << 1 - prev_y[0] : (({left[1]} + {right[1]})>>1 + ({down[1]} + {up[1]}) >>1) >>1;
+                        
         for(i=0;i<0;i=i+1)begin end
         for(j=0;j<0;j=j+1)begin end
         case (state)
@@ -207,18 +210,22 @@ module GameLogic(
                 if(predict_valid)begin
                     if(left[0] == 11'd2023)begin
                         // not found in this frame
-                        this_x = prev_x[1] << 1 - prev_x[0]; 
-                        this_y = prev_y[1] << 1 - prev_y[0]; 
+                        // this_x = prev_x[1] << 1 - prev_x[0]; 
+                        // this_y = prev_y[1] << 1 - prev_y[0]; 
+                        prev_x_nxt[0] = prev_x[1];
+                        prev_x_nxt[1] = this_x;
+                        prev_y_nxt[0] = prev_y[1];
+                        prev_y_nxt[1] = this_y;
                     end
                     else begin
                         //found in this frame
-                        this_x = (({left[0]} + {right[0]})>>1 + ({down[0]} + {up[0]}) >>1) >>1;
-                        this_y = (({left[1]} + {right[1]})>>1 + ({down[1]} + {up[1]}) >>1) >>1;
+                        // this_x = (({left[0]} + {right[0]})>>1 + ({down[0]} + {up[0]}) >>1) >>1;
+                        // this_y = (({left[1]} + {right[1]})>>1 + ({down[1]} + {up[1]}) >>1) >>1;
+                        prev_x_nxt[0] = prev_x[1];
+                        prev_x_nxt[1] = this_x;
+                        prev_y_nxt[0] = prev_y[1];
+                        prev_y_nxt[1] = this_y;
                     end
-                    prev_x_nxt[0] = prev_x[1];
-                    prev_x_nxt[1] = this_x;
-                    prev_y_nxt[0] = prev_y[1];
-                    prev_y_nxt[1] = this_y;
 
                     // test ball cut
                     for(i=0;i<4;i=i+1)begin
@@ -255,7 +262,7 @@ module GameLogic(
                     end
                     
                     // check gen new ball
-                    if(first_ball_num != 4'd4 && (frame_cnt - prev_gen_frame > 32'd90))begin
+                    if(first_ball_num != 4'd4 && (frame_cnt - prev_gen_frame > 32'd200))begin
                         for(i=0;i<4;i=i+1)begin
                             // generate in fixed position and velocity
                             Ball_number_nxt[i] = (i==first_ball_num) ? first_ball_index : Ball_number_nxt[i];
@@ -285,6 +292,28 @@ module GameLogic(
                 // show result screen
 
                 // if game start go to S_START
+                gamestart_nxt = (start) ? 1'b1 : gamestart;
+                if(gamestart && ThisFrameEnd)begin
+                    state_nxt = S_GAME;
+                    life_nxt = 2'd3;
+                    score_nxt = 21'd0;
+                    for(myint2=0;myint2<4;myint2=myint2+1)begin
+                        Ball_number_nxt[myint2] = 4'd4;
+                        Ball_x_nxt[myint2] = 11'd0;
+                        Ball_y_nxt[myint2] = 11'd0;
+                        Ball_vx_nxt[myint2] = 6'd0;
+                        Ball_vy_nxt[myint2] = 6'd0;
+                    end
+                    prev_x_nxt[0] = 11'd0;
+                    prev_x_nxt[1] = 11'd0;
+                    prev_y_nxt[0] = 11'd0;
+                    prev_y_nxt[1] = 11'd0;
+                    frame_cnt_nxt = 32'd0;
+                    prev_gen_frame_nxt = 32'd0;
+                end
+                else begin
+                    state_nxt = state;
+                end
             end
             default:begin
             end

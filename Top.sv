@@ -151,10 +151,10 @@ reg o_req, o_req_nxt;
 generate
 	genvar i;
 	for(i=0;i<2;i=i+1)begin:hi
-		assign left[i]  = 11'd200;
-		assign right[i] = 11'd200;
-		assign up[i]    = 11'd200;
-		assign down[i]  = 11'd200;
+		assign left[i]  = 11'd300;
+		assign right[i] = 11'd300;
+		assign up[i]    = 11'd300;
+		assign down[i]  = 11'd300;
 	end
 endgenerate
 
