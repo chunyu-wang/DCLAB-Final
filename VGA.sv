@@ -4,6 +4,7 @@ module VGA(
     input [7:0] R,
     input [7:0] G,
     input [7:0] B,
+    input start,
     output [7:0] VGA_R,
     output [7:0] VGA_G,
     output [7:0] VGA_B,
@@ -13,6 +14,8 @@ module VGA(
     output VGA_SYNC_N,
     output [10:0] HORIZON, // ask the input from parent with horizontal coordinate
     output [10:0] VERTICAL, // ask the input from parent with vertical   coordinate
+    output frame_start,
+    output frame_end,
     output o_request
 );
     // param
@@ -34,7 +37,6 @@ module VGA(
     localparam S_SYNC = 3'd3;
     localparam S_BACK = 3'd4;
 
-
     // reg
     logic [2:0] hstate, hstate_next;
     logic [2:0] vstate, vstate_next;
@@ -45,7 +47,7 @@ module VGA(
     logic [10:0] ho, ho_next; // current pixel horizontal coordinate
     logic [10:0] ve, ve_next; // current pixel vertical   coordinate
 
-    logic [639:0][2:0] row, row_next;
+    // logic frame_start, frame_end;
 
     // assign
     assign VGA_R  = (hstate == S_ACTI && vstate == S_ACTI) ? R : 8'd0;
@@ -65,7 +67,13 @@ module VGA(
     assign VGA_SYNC_N  = !(vstate==S_SYNC && hstate==S_SYNC);
 
     // assign o_request = hstate == S_ACTI && vstate == S_ACTI;
-    assign o_request = vstate == S_ACTI;
+    
+    // at this frame first o_request from this model
+    assign frame_start = (hstate == S_BACK) && (vstate == S_BACK) && (hcount == BACK_H -1) && (vcount == BACK_V -1) || ((hstate == S_IDLE) && (vstate == S_IDLE));
+    // at this frame first o_request stop at this clk from this model
+    assign frame_end   = (hstate == S_ACTI) && (vstate == S_ACTI) && (hcount == (ACTI_H -1)) && (vcount == (ACTI_V -1));
+    assign o_request = ((vstate == S_ACTI) && (hstate == S_ACTI) && (hcount != (ACTI_H -1))) || frame_start || ((vstate == S_ACTI) && (hstate == S_BACK) && (hcount == BACK_H -1) && (vcount != ACTI_V -1));
+
     // always comb
 
     always_comb begin
@@ -81,6 +89,10 @@ module VGA(
 
         // FSM2
         case (vstate)
+            S_IDLE:begin
+                vsync_next = 1'b1;
+                vstate_next = S_ACTI;
+            end
             S_ACTI:begin
                 vsync_next = 1'b1;
                 if(vcount == ACTI_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
@@ -153,6 +165,10 @@ module VGA(
 
         // FSM1
         case (hstate)
+            S_IDLE:begin
+                hsync_next = 1'b1;
+                hstate_next = S_ACTI;
+            end
             S_ACTI:begin
                 hsync_next = 1'b1;
                 if(hcount == ACTI_H -1)begin
@@ -207,40 +223,24 @@ module VGA(
         endcase
 
         // for pixel coordinate
-        if( vstate == S_ACTI && hstate == S_ACTI )begin
-            if( ho == WIDTH - 1)begin
-                ho_next = 11'd0;
-                ve_next = ve;
-            end
-            else begin
-                ho_next = ho + 11'd1;
-                ve_next = ve;
-            end
-        end
-        else if( vstate == S_BACK && vcount == BACK_V -1 && hstate == S_BACK && hcount == BACK_H -1)begin
-            ve_next = 11'd0;
+        if(vstate == S_ACTI && hstate == S_BACK && hcount == (BACK_H -2 ))begin
             ho_next = 11'd0;
+            ve_next = ve + 11'd1;
         end
-        else if( vstate == S_ACTI && hstate == S_BACK && hcount == BACK_H -1)begin
-            if(ve == HEIGHT -1)begin
-                ho_next = 11'd0;
-                ve_next = 11'd0;
-            end
-            else begin
-                ho_next = 11'd0;
-                ve_next = ve + 11'd1;
-            end
+        else if(vstate == S_BACK && hstate == S_BACK && vcount == (BACK_V -1) && hcount == (BACK_V -2))begin
+            ho_next = 11'd0;
+            ve_next = 11'd0;
         end
         else begin
-            ho_next = ho;
+            ho_next = ho + 11'd1;
             ve_next = ve;
         end
     end
 
     always_ff @( negedge rst_n or posedge clk) begin
         if(!rst_n)begin
-            hstate <= S_ACTI;
-            vstate <= S_ACTI;
+            hstate <= S_IDLE;
+            vstate <= S_IDLE;
             hcount <= 11'd0;
             vcount <= 11'd0;
             hsync  <= 1'b1;
