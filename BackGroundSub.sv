@@ -115,7 +115,6 @@ always_comb begin:MemoryRDWR
             addr = (h_cnt+v_cnt*10'd640)<<1 + 1'd1; //TODO:check width
             if(h_cnt == H_MAX - 1'd1) begin
                 h_cnt_next = 11'd0;
-
                 if(v_cnt == V_MAX - 1'd1) begin
                     v_cnt_next = 11'd0;
                     init_done_next = 1; // a full frame recorded
