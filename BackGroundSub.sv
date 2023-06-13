@@ -8,7 +8,7 @@ module BackgroundSub(
     input [9:0] i_b,
     output o_sram_rd,
     output o_sram_wr,
-    output o_sram_addr,
+    output [19:0] o_sram_addr,
     inout [15:0] sram_dq
 );
 
@@ -34,12 +34,12 @@ logic [15:0] wb_data ,wb_data_next;
 
 
 
-assign //+ temp4[9]?1'd1:1'd0; //TODO:check overflow
-assign o_sram_rd = (state == S_FETCH1) | (state == S_FETCH2); // sync with vga fetch
-assign o_sram_wr = (state == S_WB1) | (state == S_WB2);
+ //+ temp4[9]?1'd1:1'd0; //TODO:check overflow
+assign o_sram_rd = (state == S_FETCH1) || (state == S_FETCH2); // sync with vga fetch
+assign o_sram_wr = (state == S_WB1) || (state == S_WB2);
 assign o_sram_addr = addr;
 
-assign sram_dq = ((state == S_WB1) | (state == S_WB2)) ? wb_data:16'dz;
+assign sram_dq = ((state == S_WB1) || (state == S_WB2)) ? wb_data:16'dz;
 /*
 1 2 3 4 5 6 7 8         SRAM
   1  2  3  4  5  6  7  8       BG_SUB
@@ -51,6 +51,7 @@ assign sram_dq = ((state == S_WB1) | (state == S_WB2)) ? wb_data:16'dz;
 */
 
 always_comb begin:MemoryRDWR
+    state_next = state;
     h_cnt_next = h_cnt;
     v_cnt_next = v_cnt;
     init_done_next = init_done;
@@ -69,10 +70,10 @@ always_comb begin:MemoryRDWR
             addr = (h_cnt+v_cnt*10'd640)<<1; //TODO:check width
             if(i_valid) begin
                 state_next = S_FETCH2;
-                gray_tmp =  {8'd0,i_r}<<5 + {8'd0,i_r}<<2 + {8'd0,i_r}<<1 +  // * 38
-                        {8'd0,i_g}<<6 + {8'd0,i_g}<<3 + {8'd0,i_g}<<1 + {8'd0,i_g} +   // * 75
-                        {8'd0,i_b}<<4 - {8'd0,i_b};
-                gray_next = gray_tmp[17:10]; //new grayscale
+                gray_tmp =  ({8'd0,i_r}<<5) + ({8'd0,i_r}<<2) + ({8'd0,i_r}<<1) +  // * 38
+                        ({8'd0,i_g}<<6) + ({8'd0,i_g}<<3) + ({8'd0,i_g}<<1) + ({8'd0,i_g}) +   // * 75
+                        ({8'd0,i_b}<<4) - ({8'd0,i_b});
+                gray_next = gray_tmp[16:9]; //new grayscale
             end 
             else begin
                 state_next = state;
@@ -81,7 +82,7 @@ always_comb begin:MemoryRDWR
         end
         S_FETCH2: begin
             state_next = S_WB1;
-            addr = (h_cnt+v_cnt*10'd640)<<1 + 1'd1; //TODO:check width
+            addr = ((h_cnt+v_cnt*10'd640)<<1) + 1'd1; //TODO:check width
             
             if(!init_done) begin
                 sum = 13'd0;
@@ -89,7 +90,7 @@ always_comb begin:MemoryRDWR
             end //first cycle, dont need to fetch from sram
             else begin
                 sum = {sram_dq[11:0], 1'b0};
-                sum_square  = {16{1'b0}, sram_dq[15:12], 1'b0}; // low 5 bits
+                sum_square  = {{16{1'b0}}, sram_dq[15:12], 1'b0}; // low 5 bits
                 /* 4 3 2 1 0 */
                 /*           */
             end
@@ -112,15 +113,15 @@ always_comb begin:MemoryRDWR
         end
         S_WB2: begin
             state_next = S_FETCH1;
-            addr = (h_cnt+v_cnt*10'd640)<<1 + 1'd1; //TODO:check width
-            if(h_cnt == H_MAX - 1'd1) begin
+            addr = ((h_cnt+v_cnt*H_MAX)<<1) + 1'd1; //TODO:check width
+            if(h_cnt == H_MAX - 1'd1) begind
                 h_cnt_next = 11'd0;
                 if(v_cnt == V_MAX - 1'd1) begin
                     v_cnt_next = 11'd0;
                     init_done_next = 1; // a full frame recorded
                 end
                 else begin
-                    v_cnt_next = v_cnt_next + 11'd1'
+                    v_cnt_next = v_cnt_next + 11'd1;
                 end
             end
             else begin
@@ -128,7 +129,8 @@ always_comb begin:MemoryRDWR
             end
 
         end
-        default: 
+        default: begin
+        end
     endcase
 end
 

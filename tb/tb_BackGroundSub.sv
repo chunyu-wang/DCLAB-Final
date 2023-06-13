@@ -13,7 +13,7 @@ module testBackgroundSub(
 
     wire sram_rd;
     wire sram_wr;
-    wire sram_addr;
+    wire [19:0] sram_addr;
     wire [15:0] sram_dq;
 
     assign r = frame[x][y][0];
@@ -46,7 +46,7 @@ module testBackgroundSub(
         
         $readmemb (`FRAME_DATA_SRC, frame);
 
-        #(CYCLE * 10000000) $finish;
+        #(`CYCLE * 100000) $finish;
     end
     reg [31:0] cnt, cnt_nxt;
     assign valid = (cnt[1:0] == 2'd0);
@@ -66,7 +66,7 @@ module testBackgroundSub(
             x_nxt = x + 11'd1;
         end
     end
-    always_ff @(posedge clk)begin
+    always_ff @(posedge clk or negedge rst_n)begin
         if(!rst_n)begin
             x<= 11'd0;
             y<= 11'd0;
@@ -79,10 +79,11 @@ module testBackgroundSub(
         end
     end
     initial begin
+        clk = 0;
         rst_n = 1;
-        #(CYCLE * 1)
+        #(`CYCLE * 2)
         rst_n = 0;
-        #(CYCLE * 0)
+        #(`CYCLE * 2)
         rst_n = 1;
     end
 endmodule
