@@ -12,7 +12,8 @@ module VGA(
     output VGA_BLANK_N,
     output VGA_SYNC_N,
     output [10:0] HORIZON, // ask the input from parent with horizontal coordinate
-    output [10:0] VERTICAL // ask the input from parent with vertical   coordinate
+    output [10:0] VERTICAL, // ask the input from parent with vertical   coordinate
+    output o_request
 );
     // param
     localparam WIDTH     = 640;
@@ -63,6 +64,8 @@ module VGA(
     assign VGA_BLANK_N = (vstate == S_ACTI && hstate == S_ACTI);
     assign VGA_SYNC_N  = !(vstate==S_SYNC && hstate==S_SYNC);
 
+    // assign o_request = hstate == S_ACTI && vstate == S_ACTI;
+    assign o_request = vstate == S_ACTI;
     // always comb
 
     always_comb begin
