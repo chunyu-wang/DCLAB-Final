@@ -1,3 +1,5 @@
+`include "stickers.sv"
+
 module GameLogic(
     input i_clk,
     input i_rst_n,
@@ -109,13 +111,14 @@ module GameLogic(
 
     generate
         for(myGenvar=0;myGenvar<3;myGenvar=myGenvar+1)begin: lifeSticker
-            sticker stickers(
+            sticker_heart stickers_heart(
                 .x(x),
                 .y(y),
-                .sticker_pos_x(11'd609 - myGenvar*11'd50),
-                .sticker_pos_y(11'd80),
-                .size(11'd20),
-                .color(COLOR_red),
+                .sticker_pos_x(11'd615 - myGenvar*11'd45),
+                .sticker_pos_y(11'd60),
+                // .size(6'd5),
+                // .size_1(6'd4),
+                // .size_4(6'd1),
                 .rgb(life_rgb[myGenvar])
             );
         end
@@ -129,6 +132,14 @@ module GameLogic(
         .size(30),
         .color(COLOR_green),
         .rgb(hit_rgb)
+    );
+
+    logic [199:0] random_bits;
+
+    RandomNumberGen rd0(
+        .i_clk(i_clk),
+        .i_rst_n(i_rst_n),
+        .data(random_bits)
     );
 
     logic [7:0] rgb [2:0];
@@ -270,7 +281,7 @@ module GameLogic(
                     end
                     
                     // check gen new ball
-                    if(first_ball_num != 4'd4 && (frame_cnt - prev_gen_frame > 32'd100))begin
+                    if(first_ball_num != 4'd4 && (frame_cnt - prev_gen_frame > 32'd30))begin
                         for(i=0;i<4;i=i+1)begin
                             // generate in fixed position and velocity
                             Ball_number_nxt[i] = (i==first_ball_num) ? first_ball_index : Ball_number_nxt[i];
@@ -364,11 +375,6 @@ module GameLogic(
                 Ball_vy[myint]     <= Ball_vy_nxt[myint];
             end
             prev_gen_frame <= prev_gen_frame_nxt;
-            // Ball_number <= Ball_number_nxt;
-            // Ball_x <= Ball_x_nxt;
-            // Ball_y <= Ball_y_nxt;
-            // Ball_vx <= Ball_vx_nxt;
-            // Ball_vy <= Ball_vy_nxt;
             life <= life_nxt;
             prev_x <= prev_x_nxt;
             prev_y <= prev_y_nxt;
@@ -385,30 +391,6 @@ module GameLogic(
 
 endmodule
 
-
-module sticker(
-    input  [10:0] x,
-    input  [10:0] y,
-    input  [10:0] sticker_pos_x,
-    input  [10:0] sticker_pos_y,
-    input  [10:0] size,
-    input  [7:0]  color [2:0],
-    output [7:0]  rgb [2:0]
-);
-    // only draw circles
-    wire inCircle;
-    wire [7:0] transparent [2:0];
-
-    assign transparent[0] = 8'd0;
-    assign transparent[1] = 8'd0;
-    assign transparent[2] = 8'd0;
-
-    assign inCircle = ({11'd0,x}-{11'd0,sticker_pos_x})*({11'd0,x}-{11'd0,sticker_pos_x}) +
-    ({11'd0,y}-{11'd0,sticker_pos_y})*({11'd0,y}-{11'd0,sticker_pos_y}) 
-    <= {12'd0,size[10:1]}*{12'd0,size[10:1]};
-
-    assign rgb = (inCircle) ? color : transparent ;
-endmodule
 
 
 module RandomNumberGen(
