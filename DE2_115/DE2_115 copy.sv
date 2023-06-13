@@ -207,7 +207,6 @@ assign D5M_D[0] = GPIO[13]
 // 	.reset_reset_n(key3down),
 // 	.altpll_25_175m_clk(CLK_25_2M)
 // );
-assign VGA_CLK = clk_25M_1;
 altpll altpll0(
 	.altpll_clk_100m_clk(clk_100M), // altpll_100m_clk.clk
 	.altpll_clk_100m_3ns_clk(clk_100M_3ns),  //  altpll_50m_clk.clk
@@ -217,18 +216,6 @@ altpll altpll0(
 	
 	.clk_clk(CLOCK_50),             //             clk.clk
 	.reset_reset_n(key3down)        //           reset.reset_n
-);
-
-mergevga	test_game(
-	.i_clk(clk_25M_1),
-    .i_rst_n(KEY[3]),
-	.VGA_R(VGA_R),
-	.VGA_G(VGA_G),
-    .VGA_B(VGA_B),
-    .VGA_HS(VGA_HS),
-    .VGA_VS(VGA_VS),
-    .VGA_BLANK_N(VGA_BLANK_N),
-    .VGA_SYNC_N(VGA_SYNC_N)
 );
 
 
@@ -254,75 +241,75 @@ Debounce deb2(
 	.o_neg(key2down) 
 );
 
-// logic sdram_we, sdram_rd;
-// logic [15:0] sdram_wr_data1, sdram_wr_data2, sdram_rd_data1, sdram_rd_data2;
-// assign sdram_ctrl_clk = clk_100M;
+logic sdram_we, sdram_rd;
+logic [15:0] sdram_wr_data1, sdram_wr_data2, sdram_rd_data1, sdram_rd_data2;
+assign sdram_ctrl_clk = clk_100M;
 
-// wire dly_rst_n0, dly_rst_n1, dly_rst_n2, dly_rst_n3, dly_rst_n4;
-// Reset_Delay reset_delay(
-// 	.i_clk(CLOCK_50),
-// 	.i_rst_n(key3down),
-// 	.o_rst_n0(dly_rst_n0), // sdram ctrl
-// 	.o_rst_n1(dly_rst_n1),
-// 	.o_rst_n2(dly_rst_n2),
-// 	.o_rst_n3(dly_rst_n3),
-// 	.o_rst_n4(dly_rst_n4)
-// );
-// assign sdram_we = 1'b1;
-// assign sdram_rd = 1'b1;
+wire dly_rst_n0, dly_rst_n1, dly_rst_n2, dly_rst_n3, dly_rst_n4;
+Reset_Delay reset_delay(
+	.i_clk(CLOCK_50),
+	.i_rst_n(key3down),
+	.o_rst_n0(dly_rst_n0), // sdram ctrl
+	.o_rst_n1(dly_rst_n1),
+	.o_rst_n2(dly_rst_n2),
+	.o_rst_n3(dly_rst_n3),
+	.o_rst_n4(dly_rst_n4)
+);
+assign sdram_we = 1'b1;
+assign sdram_rd = 1'b1;
 
-// Sdram_Control	sdram_ctrl(	//	HOST Side						
-// 						    .RESET_N(key3down),
-// 							.CLK(sdram_ctrl_clk),
+Sdram_Control	sdram_ctrl(	//	HOST Side						
+						    .RESET_N(key3down),
+							.CLK(sdram_ctrl_clk),
 
-// 							//	FIFO Write Side 1
-// 							//.WR1_DATA(sdram_wr_data1),
-// 							.WR1_DATA(wr_data),
-// 							.WR1(key0down),
-// 							.WR1_ADDR(23'h000000),
-// 						    .WR1_MAX_ADDR(640*512*2), //
-// 						    .WR1_LENGTH(8'h10),
-// 							.WR1_LOAD(!dly_rst_n0),
-// 							.WR1_CLK(clk_50M), //TODO: why clock2_50
+							//	FIFO Write Side 1
+							//.WR1_DATA(sdram_wr_data1),
+							.WR1_DATA(wr_data),
+							.WR1(key0down),
+							.WR1_ADDR(23'h000000),
+						    .WR1_MAX_ADDR(640*512*2), //
+						    .WR1_LENGTH(8'h10),
+							.WR1_LOAD(!dly_rst_n0),
+							.WR1_CLK(clk_50M), //TODO: why clock2_50
 
-// 							// //	FIFO Write Side 2
-// 							// .WR2_DATA(sdram_wr_data2),
-// 							// .WR2(0),
-// 							// .WR2_ADDR(23'h100000),
-// 						    // .WR2_MAX_ADDR(23'h100000+640*480/2),
-// 							// .WR2_LENGTH(8'h50),
-// 							// .WR2_LOAD(!dly_rst_n0),
-// 							// .WR2_CLK(clk_50M),
+							// //	FIFO Write Side 2
+							// .WR2_DATA(sdram_wr_data2),
+							// .WR2(0),
+							// .WR2_ADDR(23'h100000),
+						    // .WR2_MAX_ADDR(23'h100000+640*480/2),
+							// .WR2_LENGTH(8'h50),
+							// .WR2_LOAD(!dly_rst_n0),
+							// .WR2_CLK(clk_50M),
 
-// 							//	FIFO Read Side 1
-// 						    .RD1_DATA(sdram_rd_data1),
-// 				        	.RD1(!key0down),
-// 				        	.RD1_ADDR(640*0),
-// 						    .RD1_MAX_ADDR(640*496),
-// 							.RD1_LENGTH(8'h10),
-// 							.RD1_LOAD(!dly_rst_n0),
-// 							.RD1_CLK(clk_50M),
+							//	FIFO Read Side 1
+						    .RD1_DATA(sdram_rd_data1),
+				        	.RD1(!key0down),
+				        	.RD1_ADDR(640*0),
+						    .RD1_MAX_ADDR(640*496),
+							.RD1_LENGTH(8'h10),
+							.RD1_LOAD(!dly_rst_n0),
+							.RD1_CLK(clk_50M),
 							
-// 							// //	FIFO Read Side 2
-// 						    // .RD2_DATA(Read_DATA2),
-// 							// .RD2(0),
-// 							// .RD2_ADDR(23'h100000),
-// 						    // .RD2_MAX_ADDR(23'h100000+640*480/2),
-// 							// .RD2_LENGTH(8'h50),
-// 				        	// .RD2_LOAD(!dly_rst_n0),
-// 							// .RD2_CLK(clk_50M),
+							// //	FIFO Read Side 2
+						    // .RD2_DATA(Read_DATA2),
+							// .RD2(0),
+							// .RD2_ADDR(23'h100000),
+						    // .RD2_MAX_ADDR(23'h100000+640*480/2),
+							// .RD2_LENGTH(8'h50),
+				        	// .RD2_LOAD(!dly_rst_n0),
+							// .RD2_CLK(clk_50M),
 							
-// 							//	SDRAM Side
-// 						    .SA(DRAM_ADDR),
-// 							.BA(DRAM_BA),
-// 							.CS_N(DRAM_CS_N),
-// 							.CKE(DRAM_CKE),
-// 							.RAS_N(DRAM_RAS_N),
-// 							.CAS_N(DRAM_CAS_N),
-// 							.WE_N(DRAM_WE_N),
-// 							.DQ(DRAM_DQ),
-// 							.DQM(DRAM_DQM)
-// );
+							//	SDRAM Side
+						    .SA(DRAM_ADDR),
+							.BA(DRAM_BA),
+							.CS_N(DRAM_CS_N),
+							.CKE(DRAM_CKE),
+							.RAS_N(DRAM_RAS_N),
+							.CAS_N(DRAM_CAS_N),
+							.WE_N(DRAM_WE_N),
+							.DQ(DRAM_DQ),
+							.DQM(DRAM_DQM)
+);
 
 
 /*
@@ -359,48 +346,48 @@ SevenHexDecoder seven_dec1(
  	.o_seven_one(HEX0)
 );
 */
-// logic [15:0] Q;
+logic [15:0] Q;
 
-// MYdFF dff1(
-// 	 .i_clk(clk_50M), 
-//     .i_rst_n(key3down), 
-//     .d(sdram_rd_data1),
-//     .q(Q) 
-// );
+MYdFF dff1(
+	 .i_clk(clk_50M), 
+    .i_rst_n(key3down), 
+    .d(sdram_rd_data1),
+    .q(Q) 
+);
 
-// SEG7_LUT seven_dec0(
-// 	.iDIG(Q[3:0]), 
-// 	.oSEG(HEX0)
-// );
-// SEG7_LUT seven_dec1(
-// 	.iDIG(Q[7:4]), 
-// 	.oSEG(HEX1)
-// );
-// SEG7_LUT seven_dec2(
-// 	.iDIG(Q[11:8]), 
-// 	.oSEG(HEX2)
-// );
-// SEG7_LUT seven_dec3(
-// 	.iDIG(Q[15:12]), 
-// 	.oSEG(HEX3)
-// );
+SEG7_LUT seven_dec0(
+	.iDIG(Q[3:0]), 
+	.oSEG(HEX0)
+);
+SEG7_LUT seven_dec1(
+	.iDIG(Q[7:4]), 
+	.oSEG(HEX1)
+);
+SEG7_LUT seven_dec2(
+	.iDIG(Q[11:8]), 
+	.oSEG(HEX2)
+);
+SEG7_LUT seven_dec3(
+	.iDIG(Q[15:12]), 
+	.oSEG(HEX3)
+);
 
-// SEG7_LUT seven_dec4(
-// 	.iDIG(SW[3:0]), 
-// 	.oSEG(HEX4)
-// );
-// SEG7_LUT seven_dec5(
-// 	.iDIG(SW[7:4]), 
-// 	.oSEG(HEX5)
-// );
-// SEG7_LUT seven_dec6(
-// 	.iDIG(SW[11:8]), 
-// 	.oSEG(HEX6)
-// );
-// SEG7_LUT seven_dec7(
-// 	.iDIG(SW[15:12]), 
-// 	.oSEG(HEX7)
-// );
+SEG7_LUT seven_dec4(
+	.iDIG(SW[3:0]), 
+	.oSEG(HEX4)
+);
+SEG7_LUT seven_dec5(
+	.iDIG(SW[7:4]), 
+	.oSEG(HEX5)
+);
+SEG7_LUT seven_dec6(
+	.iDIG(SW[11:8]), 
+	.oSEG(HEX6)
+);
+SEG7_LUT seven_dec7(
+	.iDIG(SW[15:12]), 
+	.oSEG(HEX7)
+);
 // comment those are use for display
 //assign HEX0 = 7'b111_1111;
 //assign HEX1 = 7'b111_1111;
