@@ -40,7 +40,7 @@ module tb_Game;
 
 	initial begin
 		$fsdbDumpfile("Game.fsdb");
-		$fsdbDumpvars("+all");
+		$fsdbDumpvars(0, "+all");
 		
 		rst_n = 1;
 		#(2*CLK)
