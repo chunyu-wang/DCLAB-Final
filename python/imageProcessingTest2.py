@@ -24,9 +24,9 @@ def colorFilter(IMG, low, high):
 def trackBarInit():
     cv2.namedWindow('trackbar')
     cv2.resizeWindow('trackbar',300,500)
-    cv2.createTrackbar('H_min','trackbar',20,50,np.empty)
-    cv2.createTrackbar('H_max','trackbar',0,255,np.empty)
-    cv2.createTrackbar('S_min','trackbar',255,255,np.empty)
+    cv2.createTrackbar('H_min','trackbar',0,255,np.empty)
+    cv2.createTrackbar('H_max','trackbar',255,255,np.empty)
+    cv2.createTrackbar('S_min','trackbar',0,255,np.empty)
     cv2.createTrackbar('S_max','trackbar',255,255,np.empty)
     cv2.createTrackbar('V_min','trackbar',0,255,np.empty)
     cv2.createTrackbar('V_max','trackbar',255,255,np.empty)
@@ -82,29 +82,29 @@ def main():
             ,IMG)
             count += 1
             FRAME_COUNT = np.array(np.ones(IMG.shape) * INIT_FRAME, np.uint32)
+            
+            # compare current img with initial Gausian model if in 1 stdev or not
+            average = np.divide(SIGMA_X, FRAME_COUNT)
+            stdev_square   = np.abs( np.divide(SIGMA_X_2, FRAME_COUNT) - np.multiply(np.divide(SIGMA_X, FRAME_COUNT), np.divide(SIGMA_X, FRAME_COUNT)))
+
+            
             if count == INIT_FRAME:
                 print("\n initialize finished \n")
             continue
-        
-        
+        GS_threshold = 4
+        offset_stdev = np.abs(np.divide( (IMG - average) , np.sqrt(stdev_square))) 
+
+        filter = offset_stdev > GS_threshold
 
         a,b = getTrackBarValue()
-        GS_threshold = a[0]/10
-        h_low = b[0]
-        h_high = a[1]
+        
 
 
         # skip img for sample rate
         count += 1
         if count % sample_rate > 0: continue
 
-        # compare current img with initial Gausian model if in 1 stdev or not
-        average = np.divide(SIGMA_X, FRAME_COUNT)
-        stdev_square   = np.abs( np.divide(SIGMA_X_2, FRAME_COUNT) - np.multiply(np.divide(SIGMA_X, FRAME_COUNT), np.divide(SIGMA_X, FRAME_COUNT)))
-
-        offset_stdev = np.abs(np.divide( (IMG - average) , np.sqrt(stdev_square))) 
-
-        filter = offset_stdev > GS_threshold
+        
         
 
         ### update GS parameter
@@ -124,8 +124,11 @@ def main():
         # print('\n\n\n')
        
         masked_img = cv2.bitwise_and(rawIMG, rawIMG, mask = filter)
-        masked_img = colorFilter(masked_img, [30,60,80], [75,230,255])
+        # masked_img = colorFilter(masked_img, [30,60,80], [75,230,255])
+        # light green  [38,66,116],[59,210,218]
+        # light purple [130,16,71],[177,144,223]
 
+        masked_img = colorFilter(masked_img, a, b)
         # put FPS on img
         masked_img = cv2.putText(masked_img, str(fps), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0))
         # # show img
