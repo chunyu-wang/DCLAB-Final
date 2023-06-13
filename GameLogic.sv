@@ -26,7 +26,7 @@ module GameLogic(
     logic [31:0] frame_cnt, frame_cnt_nxt;
     logic [31:0] cnt, cnt_nxt;
     logic [1:0] life, life_nxt;
-    logic [3:0] Ball_number [3:0];
+    reg [3:0] Ball_number [3:0];
     logic [3:0] Ball_number_nxt [3:0]; // 0~4
     logic [20:0] score, score_nxt;
 
@@ -55,7 +55,7 @@ module GameLogic(
     logic [10:0] prev_x_nxt [1:0];
     logic [10:0] prev_y_nxt [1:0];
 
-    wire [10:0] this_x, this_y;
+    logic [10:0] this_x, this_y;
 
     wire [3:0] first_ball_index, first_ball_num;
 
