@@ -134,10 +134,10 @@ module	mergevga(
     output VGA_BLANK_N,
     output VGA_SYNC_N
 );
-wire [7:0] BLACK [2:0];
-assign BLACK[0] = 8'd0;
-assign BLACK[1] = 8'd0;
-assign BLACK[2] = 8'd0;
+wire [7:0] BG [2:0];
+assign BG[0] = 8'd255;
+assign BG[1] = 8'd255;
+assign BG[2] = 8'd255;
 wire [7:0] o_rgb [2:0];
 
 wire [10:0] left  [1:0];
@@ -151,20 +151,20 @@ reg o_req, o_req_nxt;
 generate
 	genvar i;
 	for(i=0;i<2;i=i+1)begin:hi
-		assign left[i]  = 11'd200;
-		assign right[i] = 11'd200;
-		assign up[i]    = 11'd200;
-		assign down[i]  = 11'd200;
+		assign left[i]  = 11'd330;
+		assign right[i] = 11'd330;
+		assign up[i]    = 11'd330;
+		assign down[i]  = 11'd330;
 	end
 endgenerate
 
 wire [10:0] my_x, my_y;
 wire o_request;
- 
+wire st;
 GameLogic game(
     .i_clk(i_clk),
     .i_rst_n(i_rst_n),
-    .predict_valid(o_req && !o_request),
+    .predict_valid(st),
     .enter_game(1'b1),
     .start(1'b1),
     .ThisFrameEnd(1'b1),
@@ -174,7 +174,7 @@ GameLogic game(
     .down(down),
     .x(my_x),
     .y(my_y),
-    .i_rgb(BLACK),
+    .i_rgb(BG),
     .o_rgb(o_rgb)
 );
 
@@ -193,7 +193,9 @@ VGA	game_vga(
     .VGA_SYNC_N(VGA_SYNC_N),
     .HORIZON(my_x), // ask the input from parent with horizontal coordinate
     .VERTICAL(my_y), // ask the input from parent with vertical   coordinate
-	.o_request(o_request)
+	.o_request(o_request),
+	.frame_start(),
+	.frame_end(st)
 );
 
 always_comb begin

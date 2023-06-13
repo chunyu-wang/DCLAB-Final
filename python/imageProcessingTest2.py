@@ -9,7 +9,7 @@ sample_rate = 1
 
 GS_threshold = 2.3
 
-INIT_FRAME = 100
+INIT_FRAME = 32
 OSX = 1
 
 ##################
