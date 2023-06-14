@@ -15,13 +15,12 @@ module testBackgroundSub(
     wire sram_wr;
     wire [19:0] sram_addr;
     wire [15:0] sram_dq;
-
     assign r = frame[x][y][0];
     assign g = frame[x][y][1];
     assign b = frame[x][y][2];
 
     always #(`CYCLE*0.5)clk = ~clk;
-
+    logic [15:0] sram_buf [63:0];
     BackgroundSub(
         .i_clk(clk), // 100M
         .i_rst_n(rst_n), //DLY_RST_0

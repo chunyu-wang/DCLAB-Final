@@ -9,6 +9,7 @@ module BackgroundSub(
     output o_sram_rd,
     output o_sram_wr,
     output [19:0] o_sram_addr,
+    output o_finished,
     inout [15:0] sram_dq
 );
 
@@ -22,6 +23,7 @@ logic [13:0] sum_updated;
 logic [20:0] sum_square;
 logic [21:0] sum_square_updated;
 logic [15:0] sum_square_carry, sum_square_carry_next;
+logic [6:0] frame_cnt;
 //mean -> 8 sqaure -> 16  mean*32frame -> 13
 // sum -> 12 sum_2 -> 20
 //TODO: mean and stdev
@@ -38,7 +40,7 @@ logic [15:0] wb_data ,wb_data_next;
 assign o_sram_rd = (state == S_FETCH1) || (state == S_FETCH2); // sync with vga fetch
 assign o_sram_wr = (state == S_WB1) || (state == S_WB2);
 assign o_sram_addr = addr;
-
+assign o_finished = (frame_cnt == 7'd32);
 assign sram_dq = ((state == S_WB1) || (state == S_WB2)) ? wb_data:16'dz;
 /*
 1 2 3 4 5 6 7 8         SRAM
@@ -68,7 +70,7 @@ always_comb begin:MemoryRDWR
     case (state)
         S_FETCH1: begin //fetch rgb from dram, mean and square from sram
             addr = (h_cnt+v_cnt*10'd640)<<1; //TODO:check width
-            if(i_valid) begin
+            if(i_valid && frame_cnt != 7'd32) begin
                 state_next = S_FETCH2;
                 gray_tmp =  ({8'd0,i_r}<<5) + ({8'd0,i_r}<<2) + ({8'd0,i_r}<<1) +  // * 38
                         ({8'd0,i_g}<<6) + ({8'd0,i_g}<<3) + ({8'd0,i_g}<<1) + ({8'd0,i_g}) +   // * 75
@@ -114,7 +116,7 @@ always_comb begin:MemoryRDWR
         S_WB2: begin
             state_next = S_FETCH1;
             addr = ((h_cnt+v_cnt*H_MAX)<<1) + 1'd1; //TODO:check width
-            if(h_cnt == H_MAX - 1'd1) begind
+            if(h_cnt == H_MAX - 1'd1) begin
                 h_cnt_next = 11'd0;
                 if(v_cnt == V_MAX - 1'd1) begin
                     v_cnt_next = 11'd0;
@@ -143,6 +145,7 @@ always_ff @( posedge i_clk, negedge i_rst_n ) begin : Compute
         sum_square_carry <= 16'd0;
         wb_data <= 16'd0;
         gray <= 8'd0;
+        frame_cnt <= 7'd0;
     end
     else begin
         state <= state_next;
@@ -151,6 +154,9 @@ always_ff @( posedge i_clk, negedge i_rst_n ) begin : Compute
         sum_square_carry <= sum_square_carry_next;
         wb_data <= wb_data_next;
         gray <= gray_next;
+        if(frame_cnt < 7'd32) begin
+            frame_cnt <= frame_cnt + 1'd1;
+        end 
     end
 end
 
