@@ -84,9 +84,9 @@ module GameLogic(
     assign first_ball_index = first_ball_num;
 
     
-    assign this_x = //(left[0] == 11'd2023) ? prev_x[1] << 1 - prev_x[0] : 
+    assign this_x = (left[0] == 11'd2023) ? (prev_x[1] << 1) - prev_x[0] : 
     (  ((left[0] + right[0])>>1) + ((down[0] + up[0]) >>1)) >>1;
-    assign this_y = //(left[0] == 11'd2023) ? prev_y[1] << 1 - prev_y[0] :
+    assign this_y = (left[0] == 11'd2023) ? (prev_y[1] << 1) - prev_y[0] :
     (  ((left[1] + right[1])>>1) + ((down[1] + up[1]) >>1)) >>1;
         
     genvar  myGenvar;
@@ -217,25 +217,12 @@ module GameLogic(
                 end
             end
             S_GAME:begin
-                if(predict_valid)begin
-                    if(left[0] == 11'd2023)begin
-                        // not found in this frame
-                        // this_x = prev_x[1] << 1 - prev_x[0]; 
-                        // this_y = prev_y[1] << 1 - prev_y[0]; 
-                        prev_x_nxt[0] = prev_x[1];
-                        prev_x_nxt[1] = this_x;
-                        prev_y_nxt[0] = prev_y[1];
-                        prev_y_nxt[1] = this_y;
-                    end
-                    else begin
-                        //found in this frame
-                        // this_x = (({left[0]} + {right[0]})>>1 + ({down[0]} + {up[0]}) >>1) >>1;
-                        // this_y = (({left[1]} + {right[1]})>>1 + ({down[1]} + {up[1]}) >>1) >>1;
-                        prev_x_nxt[0] = prev_x[1];
-                        prev_x_nxt[1] = this_x;
-                        prev_y_nxt[0] = prev_y[1];
-                        prev_y_nxt[1] = this_y;
-                    end
+                if(predict_valid)begin 
+                    prev_x_nxt[0] = prev_x[1];
+                    prev_x_nxt[1] = this_x;
+                    prev_y_nxt[0] = prev_y[1];
+                    prev_y_nxt[1] = this_y;
+
                     // up date new ball pos
                     for(j=0;j<4;j=j+1)begin
                         //Ball_x_nxt[j] =  (Ball_number[i]==j) ? Ball_x[j]  + {Ball_vx[j][10],Ball_vx[j][10:1]} : Ball_x[j] ;
