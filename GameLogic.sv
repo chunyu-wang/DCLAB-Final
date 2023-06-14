@@ -81,11 +81,7 @@ module GameLogic(
     (Ball_number[2]>4'd3)? 4'd2 :
     (Ball_number[3]>4'd3)? 4'd3 :
     4'd4;
-    assign first_ball_index = (Ball_y[0] > 11'd639 || Ball_y[0] < 11'd10 )? 4'd0 :
-    (Ball_y[1] > 11'd639 || Ball_y[1] < 11'd10 )? 4'd1 :
-    (Ball_y[2] > 11'd639 || Ball_y[2] < 11'd10 )? 4'd2 :
-    (Ball_y[3] > 11'd639 || Ball_y[3] < 11'd10 )? 4'd3 :
-    4'd4;
+    assign first_ball_index = first_ball_num;
 
     
     assign this_x = //(left[0] == 11'd2023) ? prev_x[1] << 1 - prev_x[0] : 
@@ -152,10 +148,10 @@ module GameLogic(
         (life > 0 && life_rgb[0][0] > 8'd0) ? life_rgb[0] :
         (life > 1 && life_rgb[1][0] > 8'd0) ? life_rgb[1] :
         (life > 2 && life_rgb[2][0] > 8'd0) ? life_rgb[2] :
-        (Ball_number[0]<4'd4 && sticker_rgb[Ball_number[0]][0] > 8'd0) ? sticker_rgb[Ball_number[0]] :
-        (Ball_number[1]<4'd4 && sticker_rgb[Ball_number[1]][0] > 8'd0) ? sticker_rgb[Ball_number[1]] :
-        (Ball_number[2]<4'd4 && sticker_rgb[Ball_number[2]][0] > 8'd0) ? sticker_rgb[Ball_number[2]] :
-        (Ball_number[3]<4'd4 && sticker_rgb[Ball_number[3]][0] > 8'd0) ? sticker_rgb[Ball_number[3]] :
+        (Ball_number[0] < 4'd4 && sticker_rgb[Ball_number[0]][0] > 8'd0) ? sticker_rgb[Ball_number[0]] :
+        (Ball_number[1] < 4'd4 && sticker_rgb[Ball_number[1]][0] > 8'd0) ? sticker_rgb[Ball_number[1]] :
+        (Ball_number[2] < 4'd4 && sticker_rgb[Ball_number[2]][0] > 8'd0) ? sticker_rgb[Ball_number[2]] :
+        (Ball_number[3] < 4'd4 && sticker_rgb[Ball_number[3]][0] > 8'd0) ? sticker_rgb[Ball_number[3]] :
         i_rgb ): COLOR_red;
 
     end
@@ -239,36 +235,41 @@ module GameLogic(
                         prev_y_nxt[0] = prev_y[1];
                         prev_y_nxt[1] = this_y;
                     end
+                    // up date new ball pos
+                    for(j=0;j<4;j=j+1)begin
+                        //Ball_x_nxt[j] =  (Ball_number[i]==j) ? Ball_x[j]  + {Ball_vx[j][10],Ball_vx[j][10:1]} : Ball_x[j] ;
+                        Ball_x_nxt[j] = (j == Ball_number[0] || j == Ball_number[1] || j == Ball_number[2] || j == Ball_number[3]) ?
+                        Ball_x[j] + {Ball_vx[j][10],Ball_vx[j][10:1]} : Ball_x[j];
+
+                        Ball_y_nxt[j] = (j == Ball_number[0] || j == Ball_number[1] || j == Ball_number[2] || j == Ball_number[3]) ?
+                        Ball_y[j] + {Ball_vy[j][10],Ball_vy[j][10:1]} : Ball_y[j];
+                        
+                        Ball_vx_nxt[j] = Ball_vx[j] ;
+                        
+                        Ball_vy_nxt[j] = (j == Ball_number[0] || j == Ball_number[1] || j == Ball_number[2] || j == Ball_number[3]) ?
+                        Ball_vy[j] + 11'd1 : Ball_vy[j] ;
+                    end
 
                     // test ball cut
                     for(i=0;i<4;i=i+1)begin
                         if(Ball_number[i]<4'd4)begin
-                            if({11'd0,(Ball_x[Ball_number[i]]-this_x)}*{11'd0,(Ball_x[Ball_number[i]]-this_x)}+{11'd0,(Ball_y[Ball_number[i]]-this_y)}*{11'd0,(Ball_y[Ball_number[i]]-this_y)} <= BallSize)begin
+                            if({{11{Ball_x[Ball_number[i]]<this_x}},(Ball_x[Ball_number[i]]-this_x)}*{{11{Ball_x[Ball_number[i]]<this_x}},(Ball_x[Ball_number[i]]-this_x)}+
+                            {{11{Ball_y[Ball_number[i]]<this_y}},(Ball_y[Ball_number[i]]-this_y)}*{{11{Ball_y[Ball_number[i]]<this_y}},(Ball_y[Ball_number[i]]-this_y)}
+                            <= BallSize) begin
                                 //in circle, remove circle
-                                for(j=0;j<4;j=j+1)begin
-                                    Ball_x_nxt[j] = (i==j) ? 11'd0 : Ball_x[j];
-                                    Ball_y_nxt[j] = (i==j) ? 11'd0 : Ball_y[j];
-                                    Ball_vx_nxt[j] = (i==j) ? 11'd0 : Ball_x[j];
-                                    Ball_vy_nxt[j] = (i==j) ? 11'd0 : Ball_y[j];
-                                end
                                 for(j=0;j<4;j=j+1)begin
                                     Ball_number_nxt[j] = (i==j) ? 4'd5 : Ball_number[j];
                                 end
+                                // update score
                                 score_nxt = score + 21'd1;
                             end
                             else begin
                                 //not in circle
-                                // up date new ball pos
-                                for(j=0;j<4;j=j+1)begin
-                                    Ball_x_nxt[j] =  (Ball_number[i]==j) ? Ball_x[j]  + {Ball_vx[j][10],Ball_vx[j][10:1]} : Ball_x[j] ;
-                                    Ball_y_nxt[j] =  (Ball_number[i]==j) ? Ball_y[j]  + {Ball_vy[j][10],Ball_vy[j][10:1]} : Ball_y[j] ;
-                                    Ball_vx_nxt[j] = Ball_vx[j] ;
-                                    Ball_vy_nxt[j] = (Ball_number[i]==j) ? Ball_vy[j] + 11'd1 : Ball_vy[j];
-                                end
+                                
                                 // ball out of screen -> minus life
-                                if(Ball_y[Ball_number[i]] > 11'd639)begin
+                                if(Ball_y[Ball_number[i]] > 11'd480)begin
                                     for(j=0;j<4;j=j+1)begin
-                                        Ball_number_nxt[j] = (Ball_number[i]==j) ? 4'd4 : Ball_number[j];
+                                        Ball_number_nxt[j] = (i==j) ? 4'd4 : Ball_number[j];
                                     end
                                     life_nxt = life - 2'd1;
                                 end
@@ -286,9 +287,9 @@ module GameLogic(
                             // generate in fixed position and velocity
                             Ball_number_nxt[i] = (i==first_ball_num) ? first_ball_index : Ball_number_nxt[i];
                             Ball_x_nxt[i] = (i==first_ball_index) ? 11'd102 : Ball_x_nxt[i];
-                            Ball_y_nxt[i] = (i==first_ball_index) ? 11'd639 : Ball_y_nxt[i];
+                            Ball_y_nxt[i] = (i==first_ball_index) ? 11'd479 : Ball_y_nxt[i];
                             Ball_vx_nxt[i] = (i==first_ball_index) ? 11'd6             : Ball_vx_nxt[i];
-                            Ball_vy_nxt[i] = (i==first_ball_index) ? 11'b111_1101_0001 : Ball_vy_nxt[i];
+                            Ball_vy_nxt[i] = (i==first_ball_index) ? 11'd0 - 11'd34 : Ball_vy_nxt[i];
                         end
                         prev_gen_frame_nxt = frame_cnt;
                     end
