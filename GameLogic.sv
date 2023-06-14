@@ -129,13 +129,13 @@ module GameLogic(
         .color(COLOR_green),
         .rgb(hit_rgb)
     );
-
-    logic [199:0] random_bits;
+    wire [3:0] rand_bit;
+    logic [199:0] random_bits, random_bits_nxt;
 
     RandomNumberGen rd0(
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
-        .data(random_bits)
+        .data(rand_bit)
     );
 
     logic [7:0] rgb [2:0];
@@ -160,6 +160,7 @@ module GameLogic(
     // game logic
     always_comb begin
         cnt_nxt = cnt;
+        random_bits_nxt = {random_bits[195:0],rand_bit};
         frame_cnt_nxt = frame_cnt;
         state_nxt = state;
         prev_gen_frame_nxt = prev_gen_frame;
@@ -271,7 +272,9 @@ module GameLogic(
                                     for(j=0;j<4;j=j+1)begin
                                         Ball_number_nxt[j] = (i==j) ? 4'd4 : Ball_number[j];
                                     end
-                                    life_nxt = life - 2'd1;
+
+                                    //life_nxt = life - 2'd1;
+
                                 end
                                 else begin
                                 end
@@ -282,14 +285,14 @@ module GameLogic(
                     end
                     
                     // check gen new ball
-                    if(first_ball_num != 4'd4 && (frame_cnt - prev_gen_frame > 32'd30))begin
+                    if(first_ball_num != 4'd4 && (frame_cnt - prev_gen_frame > 32'd29))begin
                         for(i=0;i<4;i=i+1)begin
                             // generate in fixed position and velocity
                             Ball_number_nxt[i] = (i==first_ball_num) ? first_ball_index : Ball_number_nxt[i];
-                            Ball_x_nxt[i] = (i==first_ball_index) ? 11'd102 : Ball_x_nxt[i];
-                            Ball_y_nxt[i] = (i==first_ball_index) ? 11'd479 : Ball_y_nxt[i];
-                            Ball_vx_nxt[i] = (i==first_ball_index) ? 11'd6             : Ball_vx_nxt[i];
-                            Ball_vy_nxt[i] = (i==first_ball_index) ? 11'd0 - 11'd34 : Ball_vy_nxt[i];
+                            Ball_x_nxt[i] = (i==first_ball_index) ? ( (random_bits[2]) ? 11'd321 + {3'd0,random_bits[10:3]} : 11'd319 - {3'd0,random_bits[10:3]}) : Ball_x_nxt[i];
+                            Ball_y_nxt[i] = (i==first_ball_index) ?  11'd479 : Ball_y_nxt[i];
+                            Ball_vx_nxt[i] = (i==first_ball_index) ? ( (random_bits[2]) ? -{8'd0,random_bits[13:11]} :  {8'd0,random_bits[13:11]}  ): Ball_vx_nxt[i];
+                            Ball_vy_nxt[i] = (i==first_ball_index) ? 11'd0 - (11'd38 + {9'd0,random_bits[1:0]}) : Ball_vy_nxt[i];
                         end
                         prev_gen_frame_nxt = frame_cnt;
                     end
@@ -363,6 +366,7 @@ module GameLogic(
             gamestart <= 1'd0;
             gameenter <= 1'd0;
             score <= 21'd0;
+            random_bits <= 200'd0;
         end
         else begin
             cnt <= cnt_nxt;
@@ -382,7 +386,7 @@ module GameLogic(
             gamestart <= gamestart_nxt;
             gameenter <= gameenter_nxt;
             score <= score_nxt;
-
+            random_bits <= random_bits_nxt;
         end
     end
 
@@ -391,32 +395,100 @@ module GameLogic(
 
 
 endmodule
-
-
 
 module RandomNumberGen(
-    input  i_clk,
-    input  i_rst_n,
-    output reg [199:0] data
+  input  i_clk,
+  input  i_rst_n,
+
+  output reg [4:0] data
 );
 
-    reg [199:0] data_next;
-    integer i;
-    always_comb begin
-        for(i=199;i>2;i=i-1)begin
-            data_next[i] = data[i]^data[i-3];
-        end
-        data_next[2] = data[2]^data[199];
-        data_next[1] = data[1]^data[198];
-        data_next[0] = data[0]^data[197];
-    end
+wire feedback = data[4] ^ data[1] ;
 
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if(!i_rst_n)begin
-            data <= {50{4'hf}};
-        end
-        else begin
-            data <= data_next;
-        end
-    end
+always @(posedge i_clk or negedge i_rst_n)
+  if (~i_rst_n) 
+    data <= 4'hf;
+  else
+    data <= {data[3:0], feedback} ;
+
 endmodule
+
+
+// module RandomNumberGen (input stop, i_clk, i_rst_n, output data);
+
+// //(* OPTIMIZE="OFF" *)                    //stop *xilinx* tools optimizing this away
+// wire [31:1] stage /* synthesis keep */; //stop *altera* tools optimizing this away
+// reg meta1, meta2;
+
+// assign data = meta2;
+
+// always@(posedge i_clk or negedge i_rst_n)
+// if(!i_rst_n)
+// begin
+//     meta1 <= 1'b0;
+//     meta2 <= 1'b0;
+// end
+// else begin
+//     meta1 <= stage[1];
+//     meta2 <= meta1;
+// end
+
+// assign stage[1] = ~&{stage[2] ^ stage[1],stop};
+// assign stage[2] = !stage[3];
+// assign stage[3] = !stage[4] ^ stage[1];
+// assign stage[4] = !stage[5] ^ stage[1];
+// assign stage[5] = !stage[6] ^ stage[1];
+// assign stage[6] = !stage[7] ^ stage[1];
+// assign stage[7] = !stage[8];
+// assign stage[8] = !stage[9] ^ stage[1];
+// assign stage[9] = !stage[10] ^ stage[1];
+// assign stage[10] = !stage[11];
+// assign stage[11] = !stage[12];
+// assign stage[12] = !stage[13] ^ stage[1];
+// assign stage[13] = !stage[14];
+// assign stage[14] = !stage[15] ^ stage[1];
+// assign stage[15] = !stage[16] ^ stage[1];
+// assign stage[16] = !stage[17] ^ stage[1];
+// assign stage[17] = !stage[18];
+// assign stage[18] = !stage[19];
+// assign stage[19] = !stage[20] ^ stage[1];
+// assign stage[20] = !stage[21] ^ stage[1];
+// assign stage[21] = !stage[22];
+// assign stage[22] = !stage[23];
+// assign stage[23] = !stage[24];
+// assign stage[24] = !stage[25];
+// assign stage[25] = !stage[26];
+// assign stage[26] = !stage[27] ^ stage[1];
+// assign stage[27] = !stage[28];
+// assign stage[28] = !stage[29];
+// assign stage[29] = !stage[30];
+// assign stage[30] = !stage[31];
+// assign stage[31] = !stage[1];
+
+// endmodule
+// module RandomNumberGen(
+//     input  i_clk,
+//     input  i_rst_n,
+//     output reg [199:0] data
+// );
+
+//     reg [199:0] data_next;
+//     integer i;
+//     always_comb begin
+//         for(i=199;i>2;i=i-1)begin
+//             data_next[i] = data[i]^data[i-3];
+//         end
+//         data_next[2] = data[2]^data[199];
+//         data_next[1] = data[1]^data[198];
+//         data_next[0] = data[0]^data[197];
+//     end
+
+//     always_ff @(posedge i_clk or negedge i_rst_n) begin
+//         if(!i_rst_n)begin
+//             data <= {50{4'hf}};
+//         end
+//         else begin
+//             data <= data_next;
+//         end
+//     end
+// endmodule
