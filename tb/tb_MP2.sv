@@ -6,7 +6,7 @@
 module testMP(
     
 );
-    reg clk_25M, clk_50M;
+    reg clk_25M, clk_100M;
     reg rst_n;
     wire [7:0] r;
     wire [7:0] g;
@@ -118,7 +118,7 @@ module testMP(
         // $readmemb (`HSV_DATA_SRC,   hsv);
 
         clk_25M = 1;
-        clk_50M = 1;
+        clk_100M = 1;
         rst_n = 1;
         // for(i=0;i<640;i=i+1)begin
         //     for(j=0;j<480;j=j+1)begin
@@ -129,7 +129,7 @@ module testMP(
         // end
     end
     
-    always #(`CYCLE*0.5)    clk_50M = ~clk_50M;
+    always #(`CYCLE*0.25)    clk_100M = ~clk_100M;
     always #(`CYCLE)        clk_25M = ~clk_25M;
     
     initial begin
