@@ -125,7 +125,7 @@ module testMP(
         #(`CYCLE * 2)rst_n = 1;
         #(`CYCLE * 2)start = 1;
         #(`CYCLE * 2)start = 0;
-        #(`CYCLE * 100000)
+        #(`CYCLE * 1500000)
         $display("==============");
         $display("");
         $display("    finish    ");

@@ -6,6 +6,12 @@ module MotionPredict(
     input [7:0] g,
     input [7:0] b,
 
+    input [10:0] x,
+    input [10:0] y,
+
+    input frame_start,
+    input frame_end,
+
     input [7:0] pix_x,   // mean of the first 32 frames with gray scale at x,y
     input [7:0] pix_x2,  // stdev of the first 32 frames with gray scale at x,y
 
@@ -25,7 +31,9 @@ module MotionPredict(
     output [10:0] down  [1:0],
     output [9:0] o_h,
     output [9:0] o_s,
-    output [9:0] o_v
+    output [9:0] o_v,
+
+    output o_filtered
 );
 ////////////////////////////////////
     localparam WIDTH  = 640;
@@ -54,13 +62,12 @@ module MotionPredict(
     localparam vmin = 80;
 ////////////////////////////////////////////
     localparam NOT_FOUND = 11'd2023;
+
+    localparam NOISE_THRESHOLD = 32'd1024;
     //please only check LEFT or UP for not found
 ///////////////////////////////////////////
 
     logic [2:0] state, state_nxt;
-
-    logic [10:0] x, x_nxt;
-    logic [10:0] y, y_nxt;
 
     wire [7:0] r_w, g_w, b_w;
     wire [7:0] max, min;
@@ -83,17 +90,13 @@ module MotionPredict(
 
         gray = temp4[14:7] + temp4[6]?1'd1:1'd0;
 
-        isBackground = (gray>pix_x) ?
-        {8'd0,gray-pix_x}*{8'd0,gray-pix_x} <= pix_x2 :
-        {8'd0,pix_x-gray}*{8'd0,pix_x-gray} <= pix_x2 ;
+        isBackground = 1'b0;
     end
 ///////////////////////////////////////////
 
-    assign coord_valid = (state == S_READ);
-    assign o_x = x;
-    assign o_y = y;
-    assign o_valid = (state == S_OUT);
+    assign coord_valid = (state == S_PROC);
 
+    assign o_valid = (state == S_OUT);
     generate
         for (mygen = 0; mygen < 2; mygen = mygen + 1)begin : genwires
             assign up[mygen]    = (mygen) ? up_x    : up_y;
@@ -134,12 +137,25 @@ module MotionPredict(
     (max == r_w) ?     10'd360 + temp1[9:0] :
     ((max == g_w) ?     10'd120 + temp2[9:0] :
     10'd240 + temp3[9:0] )));
+
+
+    assign o_filtered = 
+    (x < 11'd640) && (y < 11'd640) &&
+    (h >= hmin) && (h <= hmax) &&
+    (s >= smin) && (s <= smax) &&
+    (v >= vmin) && (v <= vmax);
+
+    logic [31:0] x_cm, x_cm_nxt;
+    logic [31:0] y_cm, y_cm_nxt;
+    logic [31:0] pix_cnt, pix_cnt_nxt;
+    
+    wire [31:0] x_cm_div, y_cm_div;
+    assign x_cm_div = (pix_cnt == 32'd0) ? 32'd0 : x_cm / pix_cnt;
+    assign y_cm_div = (pix_cnt == 32'd0) ? 32'd0 : y_cm / pix_cnt;
 ///////////////////////////////////////////
 
     always_comb begin
         state_nxt = state;
-        x_nxt = x;
-        y_nxt = y;
 
         // r_w = 8'd0; g_w = 8'd0; b_w = 8'd0;
         // max = 8'd0; min = 8'd0;
@@ -154,117 +170,62 @@ module MotionPredict(
         down_x_nxt = down_x;
         down_y_nxt = down_y;
 
+        x_cm_nxt = x_cm;
+        y_cm_nxt = y_cm;
+        pix_cnt_nxt = pix_cnt;
+
         case(state)
             S_IDLE:begin
-                state_nxt = (i_start) ? S_READ : state ;
-                x_nxt = 11'd0; y_nxt = 11'd0;
-            end
-            S_READ:begin
-                state_nxt = S_PROC;
+                state_nxt = (i_start) ? S_PROC : state ;
+                x_cm_nxt = 32'd0; y_cm_nxt = 32'd0; pix_cnt_nxt = 32'd0;
+                left_x_nxt = 11'd2023;
+                left_y_nxt = 11'd2023;
+                up_x_nxt = 11'd2023;
+                up_y_nxt = 11'd2023;
+                down_x_nxt = 11'd2023;
+                down_y_nxt = 11'd2023;
+                right_x_nxt = 11'd2023;
+                right_y_nxt = 11'd2023;
             end
             S_PROC:begin
-                if(!i_valid)begin
-                    state_nxt = state;
+                if(i_valid && o_filtered)begin
+                    x_cm_nxt = x_cm + {21'd0, x};
+                    y_cm_nxt = y_cm + {21'd0, y};
+                    pix_cnt_nxt = pix_cnt + 32'd1;
                 end
-                else if(isBackground)begin
-                    state_nxt = S_READ;
-                    if(x + deltaX >= WIDTH)begin
-                        x_nxt = 11'd0;
-                        if(y + deltaY >= HEIGHT)begin
-                            // finish a whole pic
-                            y_nxt = 11'd0;
-                            state_nxt = S_OUT;
-                        end
-                        else begin
-                            y_nxt = y + deltaY;
-                            state_nxt = S_READ;
-                        end
+
+                if(frame_end)begin
+                    // finish a whole pic
+                    state_nxt = S_OUT;
+                    if(pix_cnt > NOISE_THRESHOLD) begin
+                        left_x_nxt = x_cm / pix_cnt;
+                        down_x_nxt = x_cm / pix_cnt;
+                        right_x_nxt = x_cm / pix_cnt;
+                        up_x_nxt = x_cm / pix_cnt;
+
+                        left_y_nxt = y_cm / pix_cnt;
+                        down_y_nxt = y_cm / pix_cnt;
+                        right_y_nxt = y_cm / pix_cnt;
+                        up_y_nxt = y_cm / pix_cnt;
                     end
                     else begin
-                        x_nxt = x + deltaX ;
-                        state_nxt = S_READ;
+                        left_x_nxt = NOT_FOUND;
+                        down_x_nxt = NOT_FOUND;
+                        right_x_nxt = NOT_FOUND;
+                        up_x_nxt = NOT_FOUND;
+
+                        left_y_nxt = NOT_FOUND;
+                        down_y_nxt = NOT_FOUND;
+                        right_y_nxt = NOT_FOUND;
+                        up_y_nxt = NOT_FOUND;
                     end
                 end
                 else begin
-                    // calc white balance
-                    // r_w = (({8'd0,r} * thres_r) / max_r); 
-                    // g_w = (({8'd0,g} * thres_g) / max_g); 
-                    // b_w = (({8'd0,b} * thres_b) / max_b); 
-
-                    // calc hsv and filter
-                    // max = (r_w > g_w) ? (
-                    //     (r_w > b_w) ? r_w : b_w
-                    // ):
-                    // (
-                    //     (g_w > b_w) ? g_w : b_w
-                    // );
-                    // min = (r_w < g_w) ? (
-                    //     (r_w < b_w) ? r_w : b_w
-                    // ):
-                    // (
-                    //     (g_w < b_w) ? g_w : b_w
-                    // );
-
-                    // v = max;
-
-                    if( v > vmax || v < vmin)begin
-                        // v out of filter range
-                    end
-                    else begin
-                        // s = (max == 8'd0) ? 0 : 10'd255 * (max-min) / max;
-
-                        if(s > smax || s < smin)begin
-                            // s out of filter range
-                        end
-                        else begin
-                            // h = (max == min) ? 10'd0 :
-                            // (max == r_w && g_w > b_w)  ? (16'd60 * (g_w-b_w) / (max - min)) :
-                            // (max == r_w) ?     10'd360 - (16'd60 * (b_w-g_w) / (max - min)) :
-                            // (max == g_w) ?     10'd120 + (16'd60 * (b_w-r_w) / (max - min)) :
-                            // 10'd240 + (16'd60 * (r_w-g_w) / (max - min)) ;
-                            if(h > hmax || h < hmin)begin
-                                // h out of filter range
-                            end
-                            else begin
-                                // in range of hsv filter
-                                if(y < up_y)begin
-                                    up_x_nxt = x; up_y_nxt = y;
-                                end
-                                else begin end
-                                if(y >= down_y)begin
-                                    down_x_nxt = x; down_y_nxt = y;
-                                end
-                                else begin end
-                                if(x <= left_x)begin
-                                    left_x_nxt = x; left_y_nxt = y;
-                                end
-                                else begin end
-                                if(x > right_x)begin
-                                    right_x_nxt = x; right_y_nxt = y;
-                                end
-                                else begin end
-                            end
-                        end
-                    end
-                    // next state , next read input
-                    
-                    if(x + deltaX >= WIDTH)begin
-                        x_nxt = 11'd0;
-                        if(y + deltaY >= HEIGHT)begin
-                            // finish a whole pic
-                            y_nxt = 11'd0;
-                            state_nxt = S_OUT;
-                        end
-                        else begin
-                            y_nxt = y + deltaY;
-                            state_nxt = S_READ;
-                        end
-                    end
-                    else begin
-                        x_nxt = x + deltaX ;
-                        state_nxt = S_READ;
-                    end
+                    state_nxt = S_PROC;
                 end
+            
+                
+                
             end
             S_OUT:begin
                 state_nxt = S_IDLE;
@@ -277,8 +238,6 @@ module MotionPredict(
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if(!i_rst_n)begin
             state <= S_IDLE;
-            x <= 11'd0;
-            y <= 11'd0;
             up_x <= NOT_FOUND;
             up_y <= NOT_FOUND;
             left_x <= NOT_FOUND;
@@ -287,11 +246,13 @@ module MotionPredict(
             right_y <= 11'd0;
             down_x <= 11'd0;
             down_y <= 11'd0;
+            x_cm <= 32'd0;
+            y_cm <= 32'd0;
+            pix_cnt <= 32'd0;
+
         end
         else begin
             state <= state_nxt;
-            x <= x_nxt;
-            y <= y_nxt;
             up_x <= up_x_nxt;
             up_y <= up_y_nxt;
             down_x <= down_x_nxt;
@@ -300,6 +261,9 @@ module MotionPredict(
             left_y <= left_y_nxt;
             right_x <= right_x_nxt;
             right_y <= right_y_nxt;
+            x_cm <= x_cm_nxt;
+            y_cm <= y_cm_nxt;
+            pix_cnt <= pix_cnt_nxt;
         end
     end
 endmodule
